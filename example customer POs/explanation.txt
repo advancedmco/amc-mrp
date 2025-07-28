@@ -1,0 +1,9 @@
+After quoting and assembling a BOM for each line item, out customer will give us a PO. This will allways be called "Customer PO" wherever listed to differenciate between our own and theirs. 
+A BOM will consist of 1 part number and name, be linked to a customer PO, and multiple processes such as:
+- raw material
+- Plating
+- Heat Treatment
+- Grinding
+
+Those are all linked to vendors contained in an authoritative list on QBO. Vendor ID can be stored and vendor details can be pulled from QBO cache. All of these eventually get attached to bills with prices, which later help us fully understand cost, which doesn't always reflect the quote.
+Though, old POs with prices attached from QBO bills can be used to better estimate new work. Calculations will have to be done based on process and material type.

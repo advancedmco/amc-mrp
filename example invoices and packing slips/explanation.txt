@@ -1,0 +1,8 @@
+These are example packing slips and invoices. we will want an option to generate an invoice with the following data:
+- Customer
+- Part Number from work order = Item code
+- Description from customer PO = Description
+- rate from customer PO = rate
+- Quantity from work order
+- PO from customer PO in work order
+ Note that you must verify that there is an entry in quickbooks products and services that will get recalled for an invoice. So be prepared to check and apply or add then apply the item code to an invoice. 

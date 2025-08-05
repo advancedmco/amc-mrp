@@ -1,11 +1,34 @@
-
--- Advanced Machine Co. MRP System Database Schema
--- Created: August 2025
--- Purpose: Complete database structure for work order management, BOM, PO generation, and COC tracking
-
--- Create database
 USE amcmrp;
 
+-- ========================
+-- DROP VIEWS
+-- ========================
+DROP VIEW IF EXISTS vw_BOMDetails;
+DROP VIEW IF EXISTS vw_WorkOrderSummary;
+
+-- ========================
+-- DROP TRIGGERS
+-- ========================
+DROP TRIGGER IF EXISTS trg_workorder_number;
+DROP TRIGGER IF EXISTS trg_workorder_status_history;
+
+-- ========================
+-- DROP TABLES (in dependency order)
+-- ========================
+DROP TABLE IF EXISTS ProductionStages;
+DROP TABLE IF EXISTS WorkOrderStatusHistory;
+DROP TABLE IF EXISTS CertificatesLog;
+DROP TABLE IF EXISTS PurchaseOrdersLog;
+DROP TABLE IF EXISTS BOMProcesses;
+DROP TABLE IF EXISTS BOM;
+DROP TABLE IF EXISTS WorkOrders;
+DROP TABLE IF EXISTS Parts;
+DROP TABLE IF EXISTS Vendors;
+DROP TABLE IF EXISTS Customers;
+
+-- ========================
+-- RECREATE SCHEMA
+-- ========================
 -- =============================================
 -- CORE TABLES
 -- =============================================
@@ -287,53 +310,3 @@ CREATE INDEX idx_workorder_status_date ON WorkOrders(Status, DueDate);
 CREATE INDEX idx_bom_process_status ON BOMProcesses(Status, ProcessType);
 CREATE INDEX idx_po_log_date ON PurchaseOrdersLog(PODate);
 CREATE INDEX idx_cert_log_date ON CertificatesLog(CompletionDate);
-
--- =============================================
--- COMMENTS AND DOCUMENTATION
--- =============================================
-
-/*
-DATABASE SCHEMA DOCUMENTATION:
-
-This schema supports the Advanced Machine Co. MRP system with the following key features:
-
-1. WORK ORDER MANAGEMENT:
-   - Sequential work order numbering (WO000001, WO000002, etc.)
-   - Status tracking through manufacturing stages
-   - Quantity tracking with loss accounting
-   - Customer and part associations
-
-2. BOM MANAGEMENT:
-   - Bill of Materials linked to work orders
-   - Individual processes with vendor assignments
-   - Cost tracking (estimated vs actual)
-   - Certification requirements
-
-3. DOCUMENT GENERATION LOGGING:
-   - Purchase Orders: Historical record of all generated POs
-   - Certificates of Completion: Historical record for military clients
-   - Document path storage for file management
-
-4. QUICKBOOKS INTEGRATION:
-   - Customer and Vendor QuickBooks ID storage
-   - Ready for API integration
-
-5. REPORTING AND ANALYTICS:
-   - Views for common queries
-   - Status history tracking
-   - Production stage monitoring
-
-USAGE NOTES:
-- Work Order Numbers are auto-generated using triggers
-- Status changes are automatically logged
-- All monetary values use DECIMAL(10,2) for precision
-- Timestamps track creation and modification dates
-- Foreign key constraints ensure data integrity
-
-IMPLEMENTATION:
-To implement this schema:
-1. Run this script in MySQL
-2. Verify all tables are created successfully
-3. Test triggers with sample data
-4. Begin building application layer on top
-*/

@@ -4,16 +4,16 @@
 
 -- Insert sample customers
 INSERT INTO Customers (CustomerName, QuickBooksID) VALUES
-('Relli Technology Inc.', 'QB_RELLI_001'),
-('Shibaura Machine Co, America', 'QB_SHIBAURA_001'),
-('Trim-Tex, Inc.','QB_TRIMTEX_001');
+('Relli Technology Inc.', 5),
+('Shibaura Machine Co, America', 6),
+('Trim-Tex, Inc.', 18);
 
 -- Insert sample vendors
 INSERT INTO Vendors (VendorName, QuickBooksID, ContactPhone, ContactEmail, Address) VALUES
-('Expert Metal Finishing Inc', 'QB_EXPERT_001', '708-583-2550', 'expertmetalfinish@sbcglobal.net', '2120 West St, River Grove IL 60171'),
-('General Surface Hardening', 'QB_GSH_001', '312-226-5472', 'ar@gshinc.net', 'PO Box 454, Lemont IL 60439'),
-('Nova-Chrome Inc', 'QB_NOVA_001', '847-455-8200', 'Kevin@nova-chrome.com', '3200 N Wolf Rd, Franklin Park IL 60131'),
-('Precise Rotary Die Inc.', 'QB_PRECISE_001', '847-678-0001', 'ioana@preciserotarydie.com', '3503 Martens St, Franklin Park IL 60131');
+('Expert Metal Finishing Inc', 9, '708-583-2550', 'expertmetalfinish@sbcglobal.net', '2120 West St, River Grove IL 60171'),
+('General Surface Hardening', 24, '312-226-5472', 'ar@gshinc.net', 'PO Box 454, Lemont IL 60439'),
+('Nova-Chrome Inc', 14, '847-455-8200', 'Kevin@nova-chrome.com', '3200 N Wolf Rd, Franklin Park IL 60131'),
+('Precise Rotary Die Inc.', 7, '847-678-0001', 'ioana@preciserotarydie.com', '3503 Martens St, Franklin Park IL 60131');
 
 -- Insert sample parts
 INSERT INTO Parts (PartNumber, PartName, Description, Material, DrawingNumber, FSN) VALUES

@@ -1,0 +1,70 @@
+-- Create database (optional)
+CREATE DATABASE IF NOT EXISTS mrp_system;
+USE mrp_system;
+
+-- 1. WorkOrders
+CREATE TABLE WorkOrders (
+    WorkOrderID INT AUTO_INCREMENT PRIMARY KEY,
+    QuickBooksCustomerID VARCHAR(50),
+    ProductName VARCHAR(100),
+    QuantityOrdered INT NOT NULL,
+    StartDate DATE,
+    DueDate DATE,
+    Status ENUM('Planned', 'In Progress', 'Completed') DEFAULT 'Planned',
+    Notes TEXT
+);
+
+-- 2. CertificatesOfCompletion
+CREATE TABLE CertificatesOfCompletion (
+    CertificateID INT AUTO_INCREMENT PRIMARY KEY,
+    WorkOrderID INT NOT NULL,
+    CompletionDate DATE,
+    DocumentLocation VARCHAR(255),
+    ApprovedBy VARCHAR(100),
+    FOREIGN KEY (WorkOrderID) REFERENCES WorkOrders(WorkOrderID)
+);
+
+-- 3. SecondaryOperations
+CREATE TABLE SecondaryOperations (
+    OperationID INT AUTO_INCREMENT PRIMARY KEY,
+    WorkOrderID INT NOT NULL,
+    OperationName VARCHAR(100) NOT NULL,
+    SupplierName VARCHAR(100),
+    Quantity INT,
+    Notes TEXT,
+    FOREIGN KEY (WorkOrderID) REFERENCES WorkOrders(WorkOrderID)
+);
+
+-- 4. PurchaseOrders
+CREATE TABLE PurchaseOrders (
+    POID INT AUTO_INCREMENT PRIMARY KEY,
+    OperationID INT NOT NULL,
+    OrderDate DATE,
+    ExpectedDelivery DATE,
+    Status ENUM('Ordered', 'Received') DEFAULT 'Ordered',
+    FOREIGN KEY (OperationID) REFERENCES SecondaryOperations(OperationID)
+);
+
+-- 5. BOM (Bill of Materials)
+CREATE TABLE BOM (
+    BOMID INT AUTO_INCREMENT PRIMARY KEY,
+    WorkOrderID INT NOT NULL,
+    ComponentName VARCHAR(100) NOT NULL,
+    QuantityPerAssembly INT NOT NULL,
+    FOREIGN KEY (WorkOrderID) REFERENCES WorkOrders(WorkOrderID)
+);
+
+-- 6. Quotes (optional)
+CREATE TABLE Quotes (
+    QuoteID INT AUTO_INCREMENT PRIMARY KEY,
+    WorkOrderID INT NOT NULL,
+    QuoteDate DATE,
+    Status ENUM('Accepted', 'Rejected', 'Pending') DEFAULT 'Pending',
+    FOREIGN KEY (WorkOrderID) REFERENCES WorkOrders(WorkOrderID)
+);
+
+7. Customer
+	customer ID
+	name
+	quickbooks ID
+

@@ -1,4 +1,4 @@
-After quoting and assembling a BOM for each line item, out customer will give us a PO. This will allways be called "Customer PO" wherever listed to differenciate between our own and theirs. 
+After quoting and assembling a BOM for each line item, our customer will give us a PO. This will always be called "Customer PO" wherever listed to differentiate between our own and theirs. 
 A BOM will consist of 1 part number and name, be linked to a customer PO, and multiple processes such as:
 - raw material
 - Plating

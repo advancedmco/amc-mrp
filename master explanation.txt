@@ -1,0 +1,7 @@
+Overview for this project as a whole.
+
+Major components
+- Quickbooks integration that runs as daemon and keeps tokens alive
+- Document generation for COCs, BOMs, and POs
+- Document retention for COCs, BOMs, and POs
+- Web interface for interacting with this data

@@ -7,9 +7,10 @@ services:
     container_name: amc-mrp-mysql
     environment:
       MYSQL_ROOT_PASSWORD: toor
-      MYSQL_DATABASE: amcmrp
-      MYSQL_USER: amc
-      MYSQL_PASSWORD: Workbench.lavender.chrome
+      # Database will be created by DDL.sql script
+      # MYSQL_DATABASE: amcmrp  
+      # MYSQL_USER: amc
+      # MYSQL_PASSWORD: Workbench.lavender.chrome
     ports:
       - "3307:3306"
     volumes:
@@ -19,7 +20,7 @@ services:
     networks:
       - amc-mrp-network
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "amc", "-pamcpassword"]
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-ptoor"]
       timeout: 20s
       retries: 10
       interval: 10s

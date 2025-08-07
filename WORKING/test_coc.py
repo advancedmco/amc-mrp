@@ -48,19 +48,13 @@ class COCTester:
         print("-" * 40)
     
     def get_database_config(self):
-        """Get database configuration from user"""
-        print("Database Configuration:")
-        print("Host: localhost")
-        print("Database: amcmrp")
-        print("Username: amc")
-        
-        password = getpass.getpass("Enter MySQL password for user 'amc': ")
+        """Get database configuration from docker-config environment"""
         
         return {
-            'host': 'localhost',
-            'database': 'amcmrp',
-            'user': 'amc',
-            'password': password,
+            'host': os.environ.get('DB_HOST'),
+            'database': os.environ.get('DB_NAME'),
+            'user': os.environ.get('DB_USER'),
+            'password': os.environ.get('DB_PASSWORD'),
             'port': 3306
         }
     
@@ -194,14 +188,14 @@ class COCTester:
         """Test if COC template exists"""
         self.print_step(4, "Checking COC Template")
         
-        template_path = "Dev Assets/COC Template.docx"
+        template_path = "DevAssets/COC Template.docx"
         if os.path.exists(template_path):
             print(f"✓ Template found: {template_path}")
             return template_path
         else:
             print(f"✗ Template not found: {template_path}")
             # Try alternative path
-            alt_path = "../Dev Assets/COC Template.docx"
+            alt_path = "../DevAssets/COC Template.docx"
             if os.path.exists(alt_path):
                 print(f"✓ Template found at alternative path: {alt_path}")
                 return alt_path
@@ -386,7 +380,7 @@ def main():
     print("- MySQL server running on localhost")
     print("- Database 'amcmrp' exists with schema created")
     print("- User 'amc' has access to the database")
-    print("- COC Template.docx exists in Dev Assets folder")
+    print("- COC Template.docx exists in DevAssets folder")
     
     input("\nPress Enter to continue...")
     

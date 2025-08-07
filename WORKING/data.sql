@@ -2,6 +2,8 @@
 -- SAMPLE DATA INSERTS
 -- =============================================
 
+use amcmrp;
+
 -- Insert sample customers
 INSERT INTO Customers (CustomerName, QuickBooksID) VALUES
 ('Relli Technology Inc.', 5),

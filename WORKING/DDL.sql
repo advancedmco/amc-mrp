@@ -4,6 +4,7 @@
 -- Purpose: Complete database structure for work order management, BOM, PO generation, and COC tracking
 
 -- Create database
+CREATE DATABASE amcmrp;
 USE amcmrp;
 
 -- =============================================

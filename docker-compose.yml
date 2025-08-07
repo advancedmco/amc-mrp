@@ -1,0 +1,102 @@
+version: '3.8'
+
+services:
+  # MySQL Database Service
+  mysql:
+    image: mysql:8.0
+    container_name: amc-mrp-mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: toor
+      MYSQL_DATABASE: amcmrp
+      MYSQL_USER: amc
+      MYSQL_PASSWORD: Workbench.lavender.chrome
+    ports:
+      - "3307:3306"
+    volumes:
+      # Mount SQL initialization scripts
+      - ./WORKING/DDL.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+      - ./WORKING/data.sql:/docker-entrypoint-initdb.d/02-data.sql:ro
+    networks:
+      - amc-mrp-network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "amc", "-pamcpassword"]
+      timeout: 20s
+      retries: 10
+      interval: 10s
+      start_period: 40s
+    # No persistent volumes - fresh database on each startup
+    tmpfs:
+      - /var/lib/mysql
+
+  # Python Application Service
+  python-app:
+    image: python:3.11-slim
+    container_name: amc-mrp-python
+    depends_on:
+      mysql:
+        condition: service_healthy
+    environment:
+      # Database connection environment variables
+      DB_HOST: mysql
+      DB_NAME: amcmrp
+      DB_USER: amc
+      DB_PASSWORD: Workbench.lavender.chrome
+      DB_PORT: 3306
+      # COC Generator specific environment variables
+      COC_TEMPLATE_PATH: /app/DevAssets/COC Template.docx
+      COC_OUTPUT_DIR: /app/output
+    volumes:
+      # Mount source code for development
+      - ./WORKING:/app/WORKING:rw
+      - ./DevAssets:/app/DevAssets:ro
+      # Mount output directory for generated PDFs
+      - ./output:/app/output:rw
+      # Mount templates
+      - ./DevAssets/COC Template.docx:/app/DevAssets/COC Template.docx:ro
+      # Mount requirements.txt for installation
+      - ./DevAssets/pythondocker/requirements.txt:/app/requirements.txt:ro
+    working_dir: /app/WORKING
+    networks:
+      - amc-mrp-network
+    # Install dependencies and keep container running
+    command: |
+      bash -c "
+        apt-get update && 
+        apt-get install -y pandoc texlive-xetex texlive-fonts-recommended texlive-plain-generic && 
+        rm -rf /var/lib/apt/lists/* &&
+        pip install --no-cache-dir -r /app/requirements.txt && 
+        mkdir -p /app/output &&
+        echo 'Environment ready! Dependencies installed.' &&
+        tail -f /dev/null
+      "
+
+  # Optional: Web interface service (for future development)
+  # web-app:
+  #   build:
+  #     context: ./web
+  #     dockerfile: Dockerfile
+  #   container_name: amc-mrp-web
+  #   depends_on:
+  #     mysql:
+  #       condition: service_healthy
+  #   ports:
+  #     - "8080:8080"
+  #   environment:
+  #     DB_HOST: mysql
+  #     DB_NAME: amcmrp
+  #     DB_USER: amc
+  #     DB_PASSWORD: amcpassword
+  #   volumes:
+  #     - ./web:/app:rw
+  #   networks:
+  #     - amc-mrp-network
+
+networks:
+  amc-mrp-network:
+    driver: bridge
+
+volumes:
+  # Define named volumes if needed for persistent data
+  # (Currently not used since we want fresh DB each time)
+  output-data:
+    driver: local

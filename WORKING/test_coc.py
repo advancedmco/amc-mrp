@@ -208,7 +208,7 @@ class COCTester:
         self.print_step(5, "Setting up COC Generator Configuration")
         
         # Create output directory
-        output_dir = "WORKING"
+        output_dir = "CACHE"
         os.makedirs(output_dir, exist_ok=True)
         
         self.config = {

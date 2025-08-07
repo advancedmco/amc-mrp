@@ -79,7 +79,7 @@ class COCGenerator:
         try:
             self.db_connection = mysql.connector.connect(
                 host=self.config['database']['host'],
-                database=self.config['database']['name'],
+                database=self.config['database']['database'],
                 user=self.config['database']['user'],
                 password=self.config['database']['password'],
                 port=self.config['database'].get('port', 3306)
@@ -439,9 +439,9 @@ def load_config() -> Dict:
     return {
         'database': {
             'host': os.getenv('DB_HOST', 'localhost'),
-            'name': os.getenv('DB_NAME', 'amc_mrp_system'),
-            'user': os.getenv('DB_USER', 'root'),
-            'password': os.getenv('DB_PASSWORD', ''),
+            'database': os.getenv('DB_NAME', 'amcmrp'),
+            'user': os.getenv('DB_USER', 'amc'),
+            'password': os.getenv('DB_PASSWORD', 'Workbench.lavender.chrome'),
             'port': int(os.getenv('DB_PORT', 3306))
         },
         'quickbooks': {

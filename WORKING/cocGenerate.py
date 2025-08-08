@@ -225,7 +225,7 @@ class COCGenerator:
     
     def fill_template(self, template_path: str, data: Dict) -> str:
         """
-        Fill DOCX template with actual data
+        Fill DOCX template with actual data while preserving formatting
         
         Args:
             template_path: Path to DOCX template file
@@ -238,21 +238,84 @@ class COCGenerator:
             # Load template
             doc = Document(template_path)
             
-            # Replace placeholders in paragraphs
+            # Replace placeholders in paragraphs while preserving formatting
             for paragraph in doc.paragraphs:
                 for key, value in data.items():
                     placeholder = f"{{{{{key}}}}}"
                     if placeholder in paragraph.text:
-                        paragraph.text = paragraph.text.replace(placeholder, str(value))
+                        # Find runs that contain the placeholder
+                        for run in paragraph.runs:
+                            if placeholder in run.text:
+                                # Replace while preserving the run's formatting
+                                run.text = run.text.replace(placeholder, str(value))
+                        
+                        # If placeholder spans multiple runs, handle it differently
+                        if placeholder in paragraph.text and not any(placeholder in run.text for run in paragraph.runs):
+                            # Reconstruct the paragraph text and replace
+                            full_text = paragraph.text
+                            if placeholder in full_text:
+                                new_text = full_text.replace(placeholder, str(value))
+                                # Clear existing runs and create a new one with original formatting
+                                if paragraph.runs:
+                                    # Use the formatting from the first run
+                                    first_run = paragraph.runs[0]
+                                    font_name = first_run.font.name
+                                    font_size = first_run.font.size
+                                    bold = first_run.font.bold
+                                    italic = first_run.font.italic
+                                    
+                                    # Clear all runs
+                                    for run in paragraph.runs[::-1]:
+                                        paragraph._element.remove(run._element)
+                                    
+                                    # Add new run with preserved formatting
+                                    new_run = paragraph.add_run(new_text)
+                                    if font_name:
+                                        new_run.font.name = font_name
+                                    if font_size:
+                                        new_run.font.size = font_size
+                                    if bold:
+                                        new_run.font.bold = bold
+                                    if italic:
+                                        new_run.font.italic = italic
             
-            # Replace placeholders in tables
+            # Replace placeholders in tables while preserving formatting
             for table in doc.tables:
                 for row in table.rows:
                     for cell in row.cells:
-                        for key, value in data.items():
-                            placeholder = f"{{{{{key}}}}}"
-                            if placeholder in cell.text:
-                                cell.text = cell.text.replace(placeholder, str(value))
+                        for paragraph in cell.paragraphs:
+                            for key, value in data.items():
+                                placeholder = f"{{{{{key}}}}}"
+                                if placeholder in paragraph.text:
+                                    # Same formatting preservation logic for table cells
+                                    for run in paragraph.runs:
+                                        if placeholder in run.text:
+                                            run.text = run.text.replace(placeholder, str(value))
+                                    
+                                    # Handle multi-run placeholders in tables
+                                    if placeholder in paragraph.text and not any(placeholder in run.text for run in paragraph.runs):
+                                        full_text = paragraph.text
+                                        if placeholder in full_text:
+                                            new_text = full_text.replace(placeholder, str(value))
+                                            if paragraph.runs:
+                                                first_run = paragraph.runs[0]
+                                                font_name = first_run.font.name
+                                                font_size = first_run.font.size
+                                                bold = first_run.font.bold
+                                                italic = first_run.font.italic
+                                                
+                                                for run in paragraph.runs[::-1]:
+                                                    paragraph._element.remove(run._element)
+                                                
+                                                new_run = paragraph.add_run(new_text)
+                                                if font_name:
+                                                    new_run.font.name = font_name
+                                                if font_size:
+                                                    new_run.font.size = font_size
+                                                if bold:
+                                                    new_run.font.bold = bold
+                                                if italic:
+                                                    new_run.font.italic = italic
             
             # Save filled document
             temp_dir = tempfile.mkdtemp()
@@ -267,7 +330,7 @@ class COCGenerator:
     
     def convert_to_pdf(self, docx_path: str, output_dir: str) -> str:
         """
-        Convert DOCX to PDF using pypandoc
+        Convert DOCX to PDF using LibreOffice with enhanced font preservation
         
         Args:
             docx_path: Path to DOCX file
@@ -285,28 +348,50 @@ class COCGenerator:
             pdf_filename = f"COC_{timestamp}.pdf"
             pdf_path = os.path.join(output_dir, pdf_filename)
             
-            # Convert DOCX to PDF using pypandoc
-            pypandoc.convert_file(
-                docx_path, 
-                'pdf', 
-                outputfile=pdf_path,
-                extra_args=['--pdf-engine=xelatex']  # Use xelatex for better formatting
-            )
+            # Use LibreOffice to convert DOCX to PDF (headless mode)
+            import subprocess
             
-            self.logger.info(f"PDF generated: {pdf_path}")
-            return pdf_path
+            # Enhanced LibreOffice command with better font handling
+            libreoffice_cmd = [
+                'libreoffice',
+                '--headless',
+                '--convert-to', 'pdf',
+                '--outdir', output_dir,
+                # Additional options for better font preservation
+                '-env:UserInstallation=file:///tmp/libreoffice_profile',
+                docx_path
+            ]
+            
+            self.logger.info(f"Converting DOCX to PDF using LibreOffice with enhanced font preservation: {docx_path}")
+            result = subprocess.run(libreoffice_cmd, capture_output=True, text=True, timeout=30)
+            
+            if result.returncode != 0:
+                raise Exception(f"LibreOffice conversion failed: {result.stderr}")
+            
+            # LibreOffice creates PDF with same name as input file but .pdf extension
+            docx_basename = os.path.splitext(os.path.basename(docx_path))[0]
+            libreoffice_pdf = os.path.join(output_dir, f"{docx_basename}.pdf")
+            
+            # Rename to our desired filename
+            if os.path.exists(libreoffice_pdf):
+                if libreoffice_pdf != pdf_path:
+                    shutil.move(libreoffice_pdf, pdf_path)
+                self.logger.info(f"PDF generated successfully with enhanced font preservation: {pdf_path}")
+                return pdf_path
+            else:
+                raise Exception(f"LibreOffice PDF output not found: {libreoffice_pdf}")
             
         except Exception as e:
-            self.logger.error(f"PDF conversion failed: {e}")
-            # Try without extra args if xelatex fails
+            self.logger.error(f"LibreOffice PDF conversion failed: {e}")
+            # Fallback to pypandoc if LibreOffice fails
             try:
-                self.logger.info("Retrying PDF conversion without xelatex...")
+                self.logger.info("Falling back to pypandoc conversion...")
                 pypandoc.convert_file(docx_path, 'pdf', outputfile=pdf_path)
-                self.logger.info(f"PDF generated (fallback): {pdf_path}")
+                self.logger.info(f"PDF generated (pypandoc fallback): {pdf_path}")
                 return pdf_path
             except Exception as e2:
-                self.logger.error(f"PDF conversion fallback also failed: {e2}")
-                raise
+                self.logger.error(f"Pypandoc fallback also failed: {e2}")
+                raise Exception(f"Both LibreOffice and pypandoc conversion failed. LibreOffice: {e}, Pypandoc: {e2}")
     
     def log_certificate(self, work_order_data: Dict, pdf_path: str, created_by: str = "System") -> int:
         """
@@ -367,6 +452,37 @@ class COCGenerator:
             self.db_connection.rollback()
             raise
     
+    def cleanup_old_pdfs(self, output_dir: str, keep_latest: int = 1):
+        """
+        Clean up old PDF files, keeping only the most recent ones
+        
+        Args:
+            output_dir: Directory containing PDF files
+            keep_latest: Number of latest PDFs to keep (default: 1)
+        """
+        try:
+            import glob
+            
+            # Find all COC PDF files
+            pdf_pattern = os.path.join(output_dir, "COC_*.pdf")
+            pdf_files = glob.glob(pdf_pattern)
+            
+            if len(pdf_files) > keep_latest:
+                # Sort by modification time (newest first)
+                pdf_files.sort(key=os.path.getmtime, reverse=True)
+                
+                # Remove older files
+                files_to_remove = pdf_files[keep_latest:]
+                for file_path in files_to_remove:
+                    try:
+                        os.remove(file_path)
+                        self.logger.info(f"Removed old PDF: {file_path}")
+                    except Exception as e:
+                        self.logger.warning(f"Failed to remove old PDF {file_path}: {e}")
+                        
+        except Exception as e:
+            self.logger.warning(f"PDF cleanup failed: {e}")
+
     def generate_coc(self, work_order_id: int, invoice_id: Optional[str] = None, 
                      created_by: str = "System") -> Tuple[str, int]:
         """
@@ -414,6 +530,9 @@ class COCGenerator:
             # Cleanup temporary files
             if os.path.exists(filled_docx_path):
                 os.remove(filled_docx_path)
+            
+            # Clean up old PDFs (keep only the latest one)
+            self.cleanup_old_pdfs(output_dir, keep_latest=1)
             
             self.logger.info(f"COC generation completed: {pdf_path}")
             return pdf_path, cert_log_id

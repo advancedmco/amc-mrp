@@ -61,11 +61,11 @@ services:
     command: |
       bash -c "
         apt-get update && 
-        apt-get install -y pandoc texlive-xetex texlive-fonts-recommended texlive-plain-generic && 
+        apt-get install -y pandoc texlive-xetex texlive-fonts-recommended texlive-plain-generic libreoffice-writer --no-install-recommends && 
         rm -rf /var/lib/apt/lists/* &&
         pip install --no-cache-dir -r /app/requirements.txt && 
         mkdir -p /app/output &&
-        echo 'Environment ready! Dependencies installed.' &&
+        echo 'Environment ready! Dependencies installed (including LibreOffice).' &&
         tail -f /dev/null
       "
 

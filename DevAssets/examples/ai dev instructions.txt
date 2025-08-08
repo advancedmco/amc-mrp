@@ -1,0 +1,7 @@
+Rules for development
+- always check this file to see if anything has changed
+- ensure docker compose is running and online
+- edit the same files you are tasked to repair
+- clean up artifacts and scripts that were used temporarily
+- use existing docker environments for testing or running programs
+- ensure any dependency changes persist in the docker and requirements.txt envionment

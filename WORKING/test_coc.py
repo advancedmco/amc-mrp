@@ -9,7 +9,6 @@ Created: August 2025
 
 import os
 import sys
-import getpass
 from datetime import datetime, date
 import mysql.connector
 from mysql.connector import Error
@@ -381,8 +380,6 @@ def main():
     print("- Database 'amcmrp' exists with schema created")
     print("- User 'amc' has access to the database")
     print("- COC Template.docx exists in DevAssets folder")
-    
-    input("\nPress Enter to continue...")
     
     tester = COCTester()
     success = tester.run_full_test()

@@ -575,7 +575,7 @@ def load_config() -> Dict:
             'path': os.getenv('COC_TEMPLATE_PATH', '../Dev Assets/COC Template.docx')
         },
         'output': {
-            'directory': os.getenv('COC_OUTPUT_DIR', '../generated_cocs')
+            'directory': os.getenv('COC_OUTPUT_DIR', './CACHE')
         }
     }
 

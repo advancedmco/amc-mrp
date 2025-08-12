@@ -553,7 +553,7 @@ def load_config() -> Dict:
             'path': os.getenv('PO_TEMPLATE_PATH', '../DevAssets/PO Template.docx')
         },
         'output': {
-            'directory': os.getenv('PO_OUTPUT_DIR', '../output')
+            'directory': os.getenv('PO_OUTPUT_DIR', './CACHE')
         }
     }
 

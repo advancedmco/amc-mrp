@@ -13,7 +13,7 @@ services:
       - "3307:3306"
     volumes:
       # Mount SQL initialization scripts
-      - ./WORKING/DDL.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+      - ./WORKING/refresh.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
       - ./WORKING/data.sql:/docker-entrypoint-initdb.d/02-data.sql:ro
     networks:
       - amc-mrp-network

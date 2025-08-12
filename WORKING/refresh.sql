@@ -1,3 +1,8 @@
+CREATE DATABASE IF NOT EXISTS amcmrp;
+CREATE USER IF NOT EXISTS 'amc'@'%' IDENTIFIED BY 'Workbench.lavender.chrome';
+GRANT ALL PRIVILEGES ON amcmrp.* TO 'amc'@'%';
+FLUSH PRIVILEGES;
+
 USE amcmrp;
 
 -- ========================

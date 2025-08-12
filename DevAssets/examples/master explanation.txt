@@ -5,3 +5,4 @@ Major components
 - Document generation for COCs, BOMs, and POs
 - Document retention for COCs, BOMs, and POs
 - Web interface for interacting with this data
+- Dashboard for creating BOMs and work orders, viewing active work orders that haven't shipped

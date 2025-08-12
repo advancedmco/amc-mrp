@@ -13,7 +13,7 @@ services:
       - "3307:3306"
     volumes:
       # Mount SQL initialization scripts
-      - ./WORKING/refresh.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+      - ./WORKING/DDL.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
       - ./WORKING/data.sql:/docker-entrypoint-initdb.d/02-data.sql:ro
     networks:
       - amc-mrp-network
@@ -69,26 +69,46 @@ services:
         tail -f /dev/null
       "
 
-  # Optional: Web interface service (for future development)
-  # web-app:
-  #   build:
-  #     context: ./web
-  #     dockerfile: Dockerfile
-  #   container_name: amc-mrp-web
-  #   depends_on:
-  #     mysql:
-  #       condition: service_healthy
-  #   ports:
-  #     - "8080:8080"
-  #   environment:
-  #     DB_HOST: mysql
-  #     DB_NAME: amcmrp
-  #     DB_USER: amc
-  #     DB_PASSWORD: amcpassword
-  #   volumes:
-  #     - ./web:/app:rw
-  #   networks:
-  #     - amc-mrp-network
+  # Web Dashboard Service
+  web-app:
+    image: python:3.11-slim
+    container_name: amc-mrp-web
+    depends_on:
+      mysql:
+        condition: service_healthy
+    ports:
+      - "5000:5000"
+    environment:
+      DB_HOST: mysql
+      DB_NAME: amcmrp
+      DB_USER: amc
+      DB_PASSWORD: Workbench.lavender.chrome
+      DB_PORT: 3306
+      COC_TEMPLATE_PATH: /app/DevAssets/COC Template.docx
+      COC_OUTPUT_DIR: /app/output
+      PO_TEMPLATE_PATH: /app/DevAssets/PO Template.docx
+      PO_OUTPUT_DIR: /app/output
+    volumes:
+      - ./web:/app/web:rw
+      - ./WORKING:/app/WORKING:rw
+      - ./DevAssets:/app/DevAssets:ro
+      - ./output:/app/output:rw
+    working_dir: /app/web
+    networks:
+      - amc-mrp-network
+    command: |
+      bash -c "
+        echo 'Setting up web dashboard...' &&
+        apt-get update && 
+        apt-get install -y pandoc texlive-xetex texlive-fonts-recommended texlive-plain-generic libreoffice-writer --no-install-recommends && 
+        rm -rf /var/lib/apt/lists/* &&
+        pip install --no-cache-dir -r /app/DevAssets/webappdocker/requirements.txt &&
+        echo 'Waiting for database to be ready...' &&
+        sleep 20 &&
+        echo 'Starting web dashboard on port 5000...' &&
+        echo 'Dashboard will be available at: http://localhost:5000' &&
+        python run.py
+      "
 
 networks:
   amc-mrp-network:

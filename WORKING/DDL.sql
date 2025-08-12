@@ -12,6 +12,26 @@ FLUSH PRIVILEGES;
 USE amcmrp;
 
 -- =============================================
+-- DROP EVERYTHING
+-- =============================================
+DROP VIEW IF EXISTS vw_BOMDetails;
+DROP VIEW IF EXISTS vw_WorkOrderSummary;
+
+DROP TRIGGER IF EXISTS trg_workorder_status_history;
+DROP TRIGGER IF EXISTS trg_workorder_number;
+
+DROP TABLE IF EXISTS ProductionStages;
+DROP TABLE IF EXISTS WorkOrderStatusHistory;
+DROP TABLE IF EXISTS CertificatesLog;
+DROP TABLE IF EXISTS PurchaseOrdersLog;
+DROP TABLE IF EXISTS BOMProcesses;
+DROP TABLE IF EXISTS BOM;
+DROP TABLE IF EXISTS WorkOrders;
+DROP TABLE IF EXISTS Parts;
+DROP TABLE IF EXISTS Vendors;
+DROP TABLE IF EXISTS Customers;
+
+-- =============================================
 -- CORE TABLES
 -- =============================================
 
@@ -66,6 +86,7 @@ CREATE TABLE WorkOrders (
     DueDate DATE,
     CompletionDate DATE,
     Status ENUM('Pending Material', 'Idle', 'On Machine', 'Secondary Operations', 'Quality Control', 'Completed', 'Shipped') DEFAULT 'Pending Material',
+    PaymentStatus ENUM('Not Received', 'In Progress', 'Received') DEFAULT 'Not Received',
     Priority ENUM('Low', 'Normal', 'High', 'Urgent') DEFAULT 'Normal',
     Notes TEXT,
     CreatedDate TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -289,6 +310,7 @@ LEFT JOIN Vendors v ON bp.VendorID = v.VendorID;
 
 -- Additional indexes for common queries
 CREATE INDEX idx_workorder_status_date ON WorkOrders(Status, DueDate);
+CREATE INDEX idx_payment_status ON WorkOrders(PaymentStatus);
 CREATE INDEX idx_bom_process_status ON BOMProcesses(Status, ProcessType);
 CREATE INDEX idx_po_log_date ON PurchaseOrdersLog(PODate);
 CREATE INDEX idx_cert_log_date ON CertificatesLog(CompletionDate);

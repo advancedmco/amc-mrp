@@ -6,3 +6,14 @@ Major components
 - Document retention for COCs, BOMs, and POs
 - Web interface for interacting with this data
 - Dashboard for creating BOMs and work orders, viewing active work orders that haven't shipped
+
+Quickbooks integration
+- Make a QBO daemon that runs, maintains keys and keeps keys alive
+- Primary initial goal is to pull a full JSON list of vendors, customers and products/services. 
+- Cache those lists every hour and index the content in memory in a quick searchable way
+- Open access for the web-app to be able to search the following indexes: client names, vendor names, client_pos, product names, product descriptions. 
+
+Web app
+- dashboard for open work orders
+- Work order page for seeing the work order status, generating COCs, generating POs
+- PO page for selecting a vendor, pulling a part name and description from parent work order from which it was clicked as well as material alloy and current quantity from work order with the option to change. Allow description field to describe the work that is needed.

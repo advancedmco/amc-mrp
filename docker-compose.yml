@@ -43,13 +43,13 @@ services:
       DB_PORT: 3306
       # COC Generator specific environment variables
       COC_TEMPLATE_PATH: /app/DevAssets/COC Template.docx
-      COC_OUTPUT_DIR: /app/output
+      COC_OUTPUT_DIR: /app/WORKING/CACHE
     volumes:
       # Mount source code for development
       - ./WORKING:/app/WORKING:rw
       - ./DevAssets:/app/DevAssets:ro
       # Mount output directory for generated PDFs
-      - ./output:/app/output:rw
+      - ./output:/app/WORKING/CACHE:rw
       # Mount templates
       - ./DevAssets/COC Template.docx:/app/DevAssets/COC Template.docx:ro
       # Mount requirements.txt for installation
@@ -85,14 +85,13 @@ services:
       DB_PASSWORD: Workbench.lavender.chrome
       DB_PORT: 3306
       COC_TEMPLATE_PATH: /app/DevAssets/COC Template.docx
-      COC_OUTPUT_DIR: /app/output
+      COC_OUTPUT_DIR: /app/WORKING/CACHE
       PO_TEMPLATE_PATH: /app/DevAssets/PO Template.docx
-      PO_OUTPUT_DIR: /app/output
+      PO_OUTPUT_DIR: /app/WORKING/CACHE
     volumes:
       - ./web:/app/web:rw
       - ./WORKING:/app/WORKING:rw
       - ./DevAssets:/app/DevAssets:ro
-      - ./output:/app/output:rw
     working_dir: /app/web
     networks:
       - amc-mrp-network

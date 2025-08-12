@@ -1,5 +1,5 @@
 -- =============================================
--- SAMPLE DATA INSERTS
+-- REAL SAMPLE DATA INSERTS
 -- =============================================
 
 use amcmrp;
@@ -8,7 +8,8 @@ use amcmrp;
 INSERT INTO Customers (CustomerName, QuickBooksID) VALUES
 ('Relli Technology Inc.', 5),
 ('Shibaura Machine Co, America', 6),
-('Trim-Tex, Inc.', 18);
+('Trim-Tex, Inc.', 18),
+('Boeing Defense & Space', 101);
 
 -- Insert sample vendors
 INSERT INTO Vendors (VendorName, QuickBooksID, ContactPhone, ContactEmail, Address) VALUES

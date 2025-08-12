@@ -1,4 +1,3 @@
-
 -- Advanced Machine Co. MRP System Database Schema
 -- Created: August 2025
 -- Purpose: Complete database structure for work order management, BOM, PO generation, and COC tracking
@@ -18,7 +17,6 @@ DROP VIEW IF EXISTS vw_BOMDetails;
 DROP VIEW IF EXISTS vw_WorkOrderSummary;
 
 DROP TRIGGER IF EXISTS trg_workorder_status_history;
-DROP TRIGGER IF EXISTS trg_workorder_number;
 
 DROP TABLE IF EXISTS ProductionStages;
 DROP TABLE IF EXISTS WorkOrderStatusHistory;
@@ -76,7 +74,6 @@ CREATE TABLE Parts (
 -- 4. Work Orders Table (Main work order management)
 CREATE TABLE WorkOrders (
     WorkOrderID INT AUTO_INCREMENT PRIMARY KEY,
-    WorkOrderNumber VARCHAR(50) NOT NULL UNIQUE, -- Sequential numbering
     CustomerID INT NOT NULL,
     PartID INT NOT NULL,
     CustomerPONumber VARCHAR(100),
@@ -93,7 +90,6 @@ CREATE TABLE WorkOrders (
     UpdatedDate TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     FOREIGN KEY (CustomerID) REFERENCES Customers(CustomerID),
     FOREIGN KEY (PartID) REFERENCES Parts(PartID),
-    INDEX idx_wo_number (WorkOrderNumber),
     INDEX idx_customer_po (CustomerPONumber),
     INDEX idx_status (Status)
 );
@@ -234,25 +230,9 @@ CREATE TABLE ProductionStages (
 -- TRIGGERS FOR AUTOMATION
 -- =============================================
 
--- Trigger to auto-generate Work Order Numbers
-DELIMITER //
-CREATE TRIGGER trg_workorder_number 
-BEFORE INSERT ON WorkOrders
-FOR EACH ROW
-BEGIN
-    DECLARE next_number INT;
-    SELECT COALESCE(MAX(CAST(SUBSTRING(WorkOrderNumber, 3) AS UNSIGNED)), 0) + 1 
-    INTO next_number 
-    FROM WorkOrders 
-    WHERE WorkOrderNumber REGEXP '^WO[0-9]+$';
-    
-    SET NEW.WorkOrderNumber = CONCAT('WO', LPAD(next_number, 6, '0'));
-END//
-DELIMITER ;
-
 -- Trigger to log status changes
 DELIMITER //
-CREATE TRIGGER trg_workorder_status_history 
+CREATE TRIGGER trg_workorder_status_history
 AFTER UPDATE ON WorkOrders
 FOR EACH ROW
 BEGIN
@@ -269,9 +249,8 @@ DELIMITER ;
 
 -- View for Work Order Summary
 CREATE VIEW vw_WorkOrderSummary AS
-SELECT 
+SELECT
     wo.WorkOrderID,
-    wo.WorkOrderNumber,
     c.CustomerName,
     p.PartNumber,
     p.PartName,
@@ -288,9 +267,9 @@ JOIN Parts p ON wo.PartID = p.PartID;
 
 -- View for BOM with Process Details
 CREATE VIEW vw_BOMDetails AS
-SELECT 
+SELECT
     b.BOMID,
-    wo.WorkOrderNumber,
+    b.WorkOrderID,
     bp.ProcessType,
     bp.ProcessName,
     v.VendorName,
@@ -325,34 +304,34 @@ DATABASE SCHEMA DOCUMENTATION:
 This schema supports the Advanced Machine Co. MRP system with the following key features:
 
 1. WORK ORDER MANAGEMENT:
-   - Sequential work order numbering (WO000001, WO000002, etc.)
-   - Status tracking through manufacturing stages
-   - Quantity tracking with loss accounting
-   - Customer and part associations
+    - Primary key `WorkOrderID` serves as the unique identifier.
+    - Status tracking through manufacturing stages
+    - Quantity tracking with loss accounting
+    - Customer and part associations
 
 2. BOM MANAGEMENT:
-   - Bill of Materials linked to work orders
-   - Individual processes with vendor assignments
-   - Cost tracking (estimated vs actual)
-   - Certification requirements
+    - Bill of Materials linked to work orders
+    - Individual processes with vendor assignments
+    - Cost tracking (estimated vs actual)
+    - Certification requirements
 
 3. DOCUMENT GENERATION LOGGING:
-   - Purchase Orders: Historical record of all generated POs
-   - Certificates of Completion: Historical record for military clients
-   - Document path storage for file management
+    - Purchase Orders: Historical record of all generated POs
+    - Certificates of Completion: Historical record for military clients
+    - Document path storage for file management
 
 4. QUICKBOOKS INTEGRATION:
-   - Customer and Vendor QuickBooks ID storage
-   - Ready for API integration
+    - Customer and Vendor QuickBooks ID storage
+    - Ready for API integration
 
 5. REPORTING AND ANALYTICS:
-   - Views for common queries
-   - Status history tracking
-   - Production stage monitoring
+    - Views for common queries
+    - Status history tracking
+    - Production stage monitoring
 
 USAGE NOTES:
-- Work Order Numbers are auto-generated using triggers
-- Status changes are automatically logged
+- `WorkOrderID` is an auto-incrementing primary key.
+- Status changes are automatically logged.
 - All monetary values use DECIMAL(10,2) for precision
 - Timestamps track creation and modification dates
 - Foreign key constraints ensure data integrity

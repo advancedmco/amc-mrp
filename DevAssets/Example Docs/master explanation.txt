@@ -1,6 +1,6 @@
-Overview for this project as a whole.
+Overview for this project.
 
-Major components
+Major components overview
 - Quickbooks integration that runs as daemon and keeps tokens alive
 - Document generation for COCs, BOMs, and POs
 - Document retention for COCs, BOMs, and POs
@@ -12,8 +12,16 @@ Quickbooks integration
 - Primary initial goal is to pull a full JSON list of vendors, customers and products/services. 
 - Cache those lists every hour and index the content in memory in a quick searchable way
 - Open access for the web-app to be able to search the following indexes: client names, vendor names, client_pos, product names, product descriptions. 
+- integration must stay alive and ensure refresh tokens aren't left to expire. Use lowest allowable check in rate for this.
 
 Web app
-- dashboard for open work orders
-- Work order page for seeing the work order status, generating COCs, generating POs
+- dashboard for all open work orders on page 1, scrollable and clickable which should link to the workorder which will contain everything about that specific job that is shown in the database, open quotes also clickable which can be followed up with and either dismissed or converted to work orders.
+- left-sided nav bar with search with search as you type for data like customerPO, workorder, part name, part number. The search should be fuzzy. Brand logo on the upper corner hyperlinked to home page dashboard view, "Quote", "Work Orders", "PO"
+- Work order page for seeing historical work orders in any state, not just open, and in order by, generating COCs with work order info after the job is complete, generating POs for secondard operations on the work for a specific vendor and operation.
 - PO page for selecting a vendor, pulling a part name and description from parent work order from which it was clicked as well as material alloy and current quantity from work order with the option to change. Allow description field to describe the work that is needed.
+- Any files generated should be output to an appropriate folder in the web app and sent to download over the browser.
+
+Database
+- Contains supplimental data QBO isn't tracking. 
+- Maintain single source of truth in QBO
+- Saves generated documents data so they can be listed and recalled at any time via web dashboard

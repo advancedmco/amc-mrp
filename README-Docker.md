@@ -19,17 +19,12 @@ This Docker Compose setup provides a complete development environment for the Ad
    docker-compose up -d
    ```
 
-3. **Check service status:**
-   ```bash
-   docker-compose ps
-   ```
-
-4. **Access the Python container:**
+3. **Access the Python container:**
    ```bash
    docker-compose exec python-app bash
    ```
 
-5. **Run the COC test script:**
+4. **Run the COC test script:**
    ```bash
    # Inside the Python container
    python test_coc.py

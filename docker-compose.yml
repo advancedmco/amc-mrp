@@ -77,7 +77,7 @@ services:
       mysql:
         condition: service_healthy
     ports:
-      - "5000:5000"
+      - "5001:5000"
     environment:
       DB_HOST: mysql
       DB_NAME: amcmrp
@@ -101,11 +101,11 @@ services:
         apt-get update && 
         apt-get install -y pandoc texlive-xetex texlive-fonts-recommended texlive-plain-generic libreoffice-writer --no-install-recommends && 
         rm -rf /var/lib/apt/lists/* &&
-        pip install --no-cache-dir -r /app/DevAssets/webappdocker/requirements.txt &&
+        pip install --no-cache-dir -r /app/DevAssets/WebApp/requirements.txt &&
         echo 'Waiting for database to be ready...' &&
         sleep 20 &&
         echo 'Starting web dashboard on port 5000...' &&
-        echo 'Dashboard will be available at: http://localhost:5000' &&
+        echo 'Dashboard will be available at: http://localhost:5001' &&
         python run.py
       "
 

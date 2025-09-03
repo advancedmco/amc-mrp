@@ -132,7 +132,6 @@ class COCGenerator:
             query = """
             SELECT 
                 wo.WorkOrderID,
-                wo.WorkOrderNumber,
                 wo.CustomerPONumber,
                 wo.QuantityOrdered,
                 wo.QuantityCompleted,
@@ -409,7 +408,7 @@ class COCGenerator:
             cursor = self.db_connection.cursor()
             
             # Generate certificate number
-            cert_number = f"COC-{work_order_data['WorkOrderNumber']}-{datetime.now().strftime('%Y%m%d')}"
+            cert_number = f"COC-{work_order_data['WorkOrderID']}-{datetime.now().strftime('%Y%m%d')}"
             
             # Insert into CertificatesLog
             insert_query = """

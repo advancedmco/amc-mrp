@@ -106,7 +106,6 @@ class POGenerator:
                 bp.ProcessRequirements,
                 bp.Status as ProcessStatus,
                 wo.WorkOrderID,
-                wo.WorkOrderNumber,
                 wo.CustomerPONumber,
                 p.PartNumber,
                 p.PartName,
@@ -372,9 +371,9 @@ class POGenerator:
                 PONumber, WorkOrderID, ProcessID, VendorID, PODate,
                 PartNumber, PartName, Material, Quantity, UnitPrice, TotalAmount,
                 CertificationRequired, ProcessRequirements, Status, DocumentPath,
-                CreatedBy, QuickBooksID
+                CreatedBy
             ) VALUES (
-                %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s
+                %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s
             )
             """
             
@@ -394,8 +393,7 @@ class POGenerator:
                 process_data['ProcessRequirements'],
                 'Created',
                 pdf_path,
-                created_by,
-                qb_po_id
+                created_by
             )
             
             cursor.execute(insert_query, values)

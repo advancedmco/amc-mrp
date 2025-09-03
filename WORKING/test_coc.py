@@ -150,11 +150,7 @@ class COCTester:
             self.test_work_order_id = cursor.lastrowid
             print(f"✓ Test work order created with ID: {self.test_work_order_id}")
             
-            # Get the auto-generated work order number
-            cursor.execute("SELECT WorkOrderNumber FROM WorkOrders WHERE WorkOrderID = %s", 
-                         (self.test_work_order_id,))
-            wo_number = cursor.fetchone()[0]
-            print(f"✓ Work Order Number: {wo_number}")
+            print(f"✓ Work Order ID: {self.test_work_order_id}")
             
             # Add production stage data
             stage_query = """

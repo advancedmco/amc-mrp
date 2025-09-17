@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MRP Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://unpkg.com/aos@2.3.1/dist/aos.css" rel="stylesheet">
+    <script src="https://unpkg.com/aos@2.3.1/dist/aos.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/feather-icons/dist/feather.min.js"></script>
+    <script src="https://unpkg.com/feather-icons"></script>
+    <style>
+        .sidebar {
+            transition: all 0.3s ease;
+        }
+        .active-nav-item {
+            background-color: #3b82f6;
+            color: white;
+        }
+        .active-nav-item:hover {
+            background-color: #2563eb;
+        }
+        .order-status-pending {
+            background-color: #fef3c7;
+            color: #92400e;
+        }
+        .order-status-in-progress {
+            background-color: #bfdbfe;
+            color: #1e40af;
+        }
+        .order-status-ready {
+            background-color: #d1fae5;
+            color: #065f46;
+        }
+        .order-status-delayed {
+            background-color: #fee2e2;
+            color: #991b1b;
+        }
+    </style>
+</head>
+<body class="bg-gray-50">
+    <div class="flex h-screen overflow-hidden">
+        <!-- Sidebar -->
+        <div class="sidebar bg-white w-64 border-r border-gray-200 flex flex-col">
+            <div class="p-4 border-b border-gray-200">
+                <h1 class="text-xl font-bold text-gray-800">MRP Tool</h1>
+            </div>
+            <nav class="flex-1 overflow-y-auto">
+                <ul class="p-2 space-y-1">
+                    <li>
+                        <a href="#" class="flex items-center p-3 rounded-lg active-nav-item">
+                            <i data-feather="home" class="w-5 h-5 mr-3"></i>
+                            <span>Dashboard</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="#" class="flex items-center p-3 rounded-lg hover:bg-gray-100">
+                            <i data-feather="file-text" class="w-5 h-5 mr-3"></i>
+                            <span>Work Orders</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="#" class="flex items-center p-3 rounded-lg hover:bg-gray-100">
+                            <i data-feather="dollar-sign" class="w-5 h-5 mr-3"></i>
+                            <span>Estimates</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="#" class="flex items-center p-3 rounded-lg hover:bg-gray-100">
+                            <i data-feather="box" class="w-5 h-5 mr-3"></i>
+                            <span>Parts</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="#" class="flex items-center p-3 rounded-lg hover:bg-gray-100">
+                            <i data-feather="shopping-cart" class="w-5 h-5 mr-3"></i>
+                            <span>Purchase Orders</span>
+                        </a>
+                    </li>
+                </ul>
+            </nav>
+            <div class="p-4 border-t border-gray-200">
+                <div class="flex items-center">
+                    <div class="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center">
+                        <i data-feather="user" class="text-blue-500"></i>
+                    </div>
+                    <div class="ml-3">
+                        <p class="text-sm font-medium">Admin User</p>
+                        <p class="text-xs text-gray-500">admin@company.com</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Content -->
+        <div class="flex-1 overflow-auto">
+            <header class="bg-white shadow-sm">
+                <div class="px-6 py-4 flex items-center justify-between">
+                    <h2 class="text-xl font-semibold text-gray-800">Order Status Dashboard</h2>
+                    <div class="flex items-center space-x-4">
+                        <div class="relative">
+                            <i data-feather="search" class="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"></i>
+                            <input type="text" placeholder="Search..." class="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                        </div>
+                        <button class="p-2 rounded-full hover:bg-gray-100">
+                            <i data-feather="bell"></i>
+                        </button>
+                    </div>
+                </div>
+            </header>
+
+            <main class="p-6">
+                <!-- Stats Cards -->
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
+                    <div class="bg-white p-6 rounded-lg shadow-sm border border-gray-100">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <p class="text-sm text-gray-500">Pending Orders</p>
+                                <p class="text-2xl font-bold mt-1">24</p>
+                            </div>
+                            <div class="p-3 rounded-full bg-yellow-100 text-yellow-600">
+                                <i data-feather="clock"></i>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="bg-white p-6 rounded-lg shadow-sm border border-gray-100">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <p class="text-sm text-gray-500">In Progress</p>
+                                <p class="text-2xl font-bold mt-1">18</p>
+                            </div>
+                            <div class="p-3 rounded-full bg-blue-100 text-blue-600">
+                                <i data-feather="activity"></i>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="bg-white p-6 rounded-lg shadow-sm border border-gray-100">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <p class="text-sm text-gray-500">Ready to Ship</p>
+                                <p class="text-2xl font-bold mt-1">7</p>
+                            </div>
+                            <div class="p-3 rounded-full bg-green-100 text-green-600">
+                                <i data-feather="check-circle"></i>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="bg-white p-6 rounded-lg shadow-sm border border-gray-100">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <p class="text-sm text-gray-500">Delayed</p>
+                                <p class="text-2xl font-bold mt-1">5</p>
+                            </div>
+                            <div class="p-3 rounded-full bg-red-100 text-red-600">
+                                <i data-feather="alert-circle"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Orders Table -->
+                <div class="bg-white rounded-lg shadow-sm border border-gray-100 overflow-hidden">
+                    <div class="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
+                        <h3 class="font-medium">Active Orders</h3>
+                        <div class="flex space-x-2">
+                            <button class="px-3 py-1 text-sm border border-gray-300 rounded-md hover:bg-gray-50">
+                                <i data-feather="filter" class="w-4 h-4 inline mr-1"></i>
+                                Filter
+                            </button>
+                            <button class="px-3 py-1 text-sm border border-gray-300 rounded-md hover:bg-gray-50">
+                                <i data-feather="download" class="w-4 h-4 inline mr-1"></i>
+                                Export
+                            </button>
+                        </div>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full divide-y divide-gray-200">
+                            <thead class="bg-gray-50">
+                                <tr>
+                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Order ID</th>
+                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Customer</th>
+                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Due Date</th>
+                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Progress</th>
+                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody class="bg-white divide-y divide-gray-200">
+                                <tr class="hover:bg-gray-50">
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">#WO-1001</td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">Acme Corp</td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">May 15, 2023</td>
+                                    <td class="px-6 py-4 whitespace-nowrap">
+                                        <span class="px-2 py-1 text-xs rounded-full order-status-in-progress">In Progress</span>
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap">
+                                        <div class="w-full bg-gray-200 rounded-full h-2">
+                                            <div class="bg-blue-600 h-2 rounded-full" style="width: 65%"></div>
+                                        </div>
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                        <button class="text-blue-600 hover:text-blue-900 mr-3">
+                                            <i data-feather="eye" class="w-4 h-4"></i>
+                                        </button>
+                                        <button class="text-gray-600 hover:text-gray-900">
+                                            <i data-feather="edit" class="w-4 h-4"></i>
+                                        </button>
+                                    </td>
+                                </tr>
+                                <tr class="hover:bg-gray-50">
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">#WO-1002</td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">Globex Inc</td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">May 18, 2023</td>
+                                    <td class="px-6 py-4 whitespace-nowrap">
+                                        <span class="px-2 py-1 text-xs rounded-full order-status-pending">Pending</span>
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap">
+                                        <div class="w-full bg-gray-200 rounded-full h-2">
+                                            <div class="bg-yellow-500 h-2 rounded-full" style="width: 10%"></div>
+                                        </div>
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                        <button class="text-blue-600 hover:text-blue-900 mr-3">
+                                            <i data-feather="eye" class="w-4 h-4"></i>
+                                        </button>
+                                        <button class="text-gray-600 hover:text-gray-900">
+                                            <i data-feather="edit" class="w-4 h-4"></i>
+                                        </button>
+                                    </td>
+                                </tr>
+                                <tr class="hover:bg-gray-50">
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">#WO-1003</td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">Soylent Corp</td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">May 10, 2023</td>
+                                    <td class="px-6 py-4 whitespace-nowrap">
+                                        <span class="px-2 py-1 text-xs rounded-full order-status-delayed">Delayed</span>
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap">
+                                        <div class="w-full bg-gray-200 rounded-full h-2">
+                                            <div class="bg-red-600 h-2 rounded-full" style="width: 40%"></div>
+                                        </div>
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                        <button class="text-blue-600 hover:text-blue-900 mr-3">
+                                            <i data-feather="eye" class="w-4 h-4"></i>
+                                        </button>
+                                        <button class="text-gray-600 hover:text-gray-900">
+                                            <i data-feather="edit" class="w-4 h-4"></i>
+                                        </button>
+                                    </td>
+                                </tr>
+                                <tr class="hover:bg-gray-50">
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">#WO-1004</td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">Initech</td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">May 20, 2023</td>
+                                    <td class="px-6 py-4 whitespace-nowrap">
+                                        <span class="px-2 py-1 text-xs rounded-full order-status-ready">Ready</span>
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap">
+                                        <div class="w-full bg-gray-200 rounded-full h-2">
+                                            <div class="bg-green-600 h-2 rounded-full" style="width: 100%"></div>
+                                        </div>
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                        <button class="text-blue-600 hover:text-blue-900 mr-3">
+                                            <i data-feather="eye" class="w-4 h-4"></i>
+                                        </button>
+                                        <button class="text-gray-600 hover:text-gray-900">
+                                            <i data-feather="edit" class="w-4 h-4"></i>
+                                        </button>
+                                    </td>
+                                </tr>
+                                <tr class="hover:bg-gray-50">
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">#WO-1005</td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">Umbrella Corp</td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">May 22, 2023</td>
+                                    <td class="px-6 py-4 whitespace-nowrap">
+                                        <span class="px-2 py-1 text-xs rounded-full order-status-in-progress">In Progress</span>
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap">
+                                        <div class="w-full bg-gray-200 rounded-full h-2">
+                                            <div class="bg-blue-600 h-2 rounded-full" style="width: 75%"></div>
+                                        </div>
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                        <button class="text-blue-600 hover:text-blue-900 mr-3">
+                                            <i data-feather="eye" class="w-4 h-4"></i>
+                                        </button>
+                                        <button class="text-gray-600 hover:text-gray-900">
+                                            <i data-feather="edit" class="w-4 h-4"></i>
+                                        </button>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="px-6 py-4 border-t border-gray-200 flex items-center justify-between">
+                        <div class="text-sm text-gray-500">
+                            Showing <span class="font-medium">1</span> to <span class="font-medium">5</span> of <span class="font-medium">24</span> results
+                        </div>
+                        <div class="flex space-x-2">
+                            <button class="px-3 py-1 text-sm border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50" disabled>
+                                Previous
+                            </button>
+                            <button class="px-3 py-1 text-sm border border-gray-300 rounded-md hover:bg-gray-50">
+                                Next
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <script>
+        AOS.init();
+        feather.replace();
+    </script>
+</body>
+</html>

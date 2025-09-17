@@ -13,17 +13,17 @@ from app import app
 
 if __name__ == '__main__':
     # Set environment variables for development
-    os.environ.setdefault('DB_HOST', 'mysql')
-    os.environ.setdefault('DB_NAME', 'amcmrp')
-    os.environ.setdefault('DB_USER', 'amc')
-    os.environ.setdefault('DB_PASSWORD', 'Workbench.lavender.chrome')
-    os.environ.setdefault('DB_PORT', '3306')
+    os.getenv('DB_HOST')
+    os.getenv('DB_NAME')
+    os.getenv('DB_USER')
+    os.getenv('DB_PASSWORD')
+    os.getenv('DB_PORT', '3306')
     
     # Template and output paths
-    os.environ.setdefault('COC_TEMPLATE_PATH', '../DevAssets/COC Template.docx')
-    os.environ.setdefault('COC_OUTPUT_DIR', '../output')
-    os.environ.setdefault('PO_TEMPLATE_PATH', '../DevAssets/PO Template.docx')
-    os.environ.setdefault('PO_OUTPUT_DIR', '../output')
+    os.getenv('COC_TEMPLATE_PATH')
+    os.getenv('PO_TEMPLATE_PATH')
+    os.getenv('COC_OUTPUT_DIR')
+    os.getenv('PO_OUTPUT_DIR')
     
     print("Starting Advanced Machine Co. MRP Web Dashboard...")
     print("Dashboard will be available at: http://localhost:5000")

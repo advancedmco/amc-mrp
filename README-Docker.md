@@ -16,12 +16,12 @@ This Docker Compose setup provides a complete development environment for the Ad
 
 2. **Start the environment:**
    ```bash
-   docker-compose up -d
+   docker compose up -d
    ```
 
 3. **Access the Python container:**
    ```bash
-   docker-compose exec python-app bash
+   docker compose exec python-app bash
    ```
 
 4. **Run the COC test script:**
@@ -59,70 +59,52 @@ This Docker Compose setup provides a complete development environment for the Ad
 The following environment variables are automatically configured:
 
 ### Database Connection
-- `DB_HOST=mysql`
-- `DB_NAME=amcmrp`
-- `DB_USER=amc`
-- `DB_PASSWORD=amcpassword`
-- `DB_PORT=3306`
-
-### COC Generator
-- `COC_TEMPLATE_PATH=/app/DevAssets/COC Template.docx`
-- `COC_OUTPUT_DIR=/app/output`
-
-## Volume Mounts
-
-### Development Volumes (Read/Write)
-- `./WORKING` → `/app/WORKING` - Python source code
-- `./output` → `/app/output` - Generated PDFs and documents
-
-### Template/Asset Volumes (Read-Only)
-- `./DevAssets` → `/app/DevAssets` - Templates and assets
-- `./DevAssets/COC Template.docx` → `/app/DevAssets/COC Template.docx` - COC template
-
-### Database Initialization (Read-Only)
-- `./WORKING/DDL.sql` → `/docker-entrypoint-initdb.d/01-schema.sql`
-- `./WORKING/data.sql` → `/docker-entrypoint-initdb.d/02-data.sql`
+- `DB_HOST`
+- `DB_NAME`
+- `DB_USER`
+- `DB_PASSWORD`
+- `DB_PORT`
 
 ## Common Commands
 
 ### Start Services
 ```bash
 # Start all services in background
-docker-compose up -d
+docker compose up -d
 
 # Start with logs visible
-docker-compose up
+docker compose up
 
 # Start specific service
-docker-compose up mysql
+docker compose up mysql
 ```
 
 ### Stop Services
 ```bash
 # Stop all services
-docker-compose down
+docker compose down
 
 # Stop and remove volumes
-docker-compose down -v
+docker compose down -v
 ```
 
 ### Development Workflow
 ```bash
 # Access Python container shell
-docker-compose exec python-app bash
+docker compose exec python-app bash
 
 # Run COC generator test
-docker-compose exec python-app python test_coc.py
+docker compose exec python-app python test_coc.py
 
 # Run specific Python script
-docker-compose exec python-app python cocGenerate.py
+docker compose exec python-app python cocGenerate.py
 
 # View logs
-docker-compose logs python-app
-docker-compose logs mysql
+docker compose logs python-app
+docker compose logs mysql
 
 # Follow logs
-docker-compose logs -f python-app
+docker compose logs -f python-app
 ```
 
 ### Database Access
@@ -131,28 +113,10 @@ docker-compose logs -f python-app
 mysql -h localhost -P 3306 -u amc -pamcpassword amcmrp
 
 # Connect from within Python container
-docker-compose exec python-app mysql -h mysql -u amc -pamcpassword amcmrp
+docker compose exec python-app mysql -h mysql -u amc -pamcpassword amcmrp
 
 # Access MySQL container directly
-docker-compose exec mysql mysql -u amc -pamcpassword amcmrp
-```
-
-## File Structure
-
-```
-amc-mrp/
-├── docker-compose.yml          # Main compose file
-├── DevAssets/
-│   ├── COC Template.docx       # Certificate template
-│   └── pythondocker/
-│       ├── Dockerfile          # Python container definition
-│       └── requirements.txt    # Python dependencies
-├── WORKING/
-│   ├── DDL.sql                # Database schema
-│   ├── data.sql               # Sample data
-│   ├── cocGenerate.py         # COC generator
-│   └── test_coc.py            # Test script
-└── output/                    # Generated PDFs (created automatically)
+docker compose exec mysql mysql -u amc -pamcpassword amcmrp
 ```
 
 ## Development Features
@@ -162,7 +126,7 @@ amc-mrp/
 - No need to rebuild the container for code changes
 
 ### Fresh Database
-- Database is recreated on each `docker-compose up`
+- Database is recreated on each `docker compose up`
 - Always starts with clean schema and sample data
 - Perfect for development and testing
 
@@ -176,31 +140,31 @@ amc-mrp/
 ### Database Connection Issues
 ```bash
 # Check if MySQL is healthy
-docker-compose ps
+docker compose ps
 
 # View MySQL logs
-docker-compose logs mysql
+docker compose logs mysql
 
 # Test database connection
-docker-compose exec python-app python -c "import mysql.connector; print('MySQL connector available')"
+docker compose exec python-app python -c "import mysql.connector; print('MySQL connector available')"
 ```
 
 ### Python Dependencies
 ```bash
 # Rebuild Python container if requirements change
-docker-compose build python-app
+docker compose build python-app
 
 # Check installed packages
-docker-compose exec python-app pip list
+docker compose exec python-app pip list
 ```
 
 ### PDF Generation Issues
 ```bash
 # Test pandoc installation
-docker-compose exec python-app pandoc --version
+docker compose exec python-app pandoc --version
 
 # Test LaTeX installation
-docker-compose exec python-app xelatex --version
+docker compose exec python-app xelatex --version
 ```
 
 ### File Permissions
@@ -212,7 +176,7 @@ sudo chown -R $USER:$USER ./output
 ## Production Considerations
 
 For production deployment:
-1. Change default passwords in docker-compose.yml
+1. Change default passwords in docker compose.yml
 2. Use environment files (.env) for sensitive data
 3. Add persistent volumes for database if needed
 4. Configure proper networking and security
@@ -221,10 +185,10 @@ For production deployment:
 ## Extending the Environment
 
 ### Adding a Web Interface
-Uncomment the `web-app` service in docker-compose.yml and create the corresponding web application.
+Uncomment the `web-app` service in docker compose.yml and create the corresponding web application.
 
 ### Adding More Services
-Add additional services to docker-compose.yml following the same pattern:
+Add additional services to docker compose.yml following the same pattern:
 - Use the `amc-mrp-network` network
 - Add appropriate `depends_on` relationships
 - Mount necessary volumes
@@ -233,7 +197,7 @@ Add additional services to docker-compose.yml following the same pattern:
 ## Support
 
 For issues with the Docker environment:
-1. Check service logs: `docker-compose logs [service-name]`
+1. Check service logs: `docker compose logs [service-name]`
 2. Verify file permissions and paths
 3. Ensure Docker Desktop has sufficient resources allocated
-4. Try rebuilding containers: `docker-compose build --no-cache`
+4. Try rebuilding containers: `docker compose build --no-cache`

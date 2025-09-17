@@ -16,7 +16,7 @@ from mysql.connector import Error
 import logging
 
 # Add WORKING directory to path to import generators
-sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'WORKING'))
+sys.path.append(os.path.join(os.path.dirname(__file__), 'generators'))
 
 try:
     from cocGenerate import COCGenerator, load_config as load_coc_config
@@ -27,7 +27,7 @@ except ImportError as e:
     POGenerator = None
 
 app = Flask(__name__)
-app.secret_key = 'amc-mrp-dashboard-secret-key'
+app.secret_key = os.getenv('FLASK_SECRET_KEY')
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -38,10 +38,10 @@ class MRPDashboard:
     
     def __init__(self):
         self.db_config = {
-            'host': os.getenv('DB_HOST', 'mysql'),
-            'database': os.getenv('DB_NAME', 'amcmrp'),
-            'user': os.getenv('DB_USER', 'amc'),
-            'password': os.getenv('DB_PASSWORD', 'Workbench.lavender.chrome'),
+            'host': os.getenv('DB_HOST'),
+            'database': os.getenv('DB_NAME'),
+            'user': os.getenv('DB_USER'),
+            'password': os.getenv('DB_PASSWORD'),
             'port': int(os.getenv('DB_PORT', 3306))
         }
     

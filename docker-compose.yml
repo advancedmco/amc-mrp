@@ -13,8 +13,8 @@ services:
       - "3307:3306"
     volumes:
       # Mount SQL initialization scripts
-      - ./WORKING/DDL.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
-      - ./WORKING/testdata.sql:/docker-entrypoint-initdb.d/02-data.sql:ro
+      - ./mrp-db/DDL.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+      - ./mrp-db/test_data/testdata.sql:/docker-entrypoint-initdb.d/02-data.sql:ro
     networks:
       - amc-mrp-network
     healthcheck:
@@ -36,25 +36,24 @@ services:
         condition: service_healthy
     environment:
       # Database connection environment variables
-      DB_HOST: mysql
-      DB_NAME: amcmrp
-      DB_USER: amc
-      DB_PASSWORD: Workbench.lavender.chrome
+      DB_HOST: ${DB_HOST}
+      DB_NAME: ${DB_NAME}
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD}
       DB_PORT: 3306
       # COC Generator specific environment variables
-      COC_TEMPLATE_PATH: /app/DevAssets/COC Template.docx
-      COC_OUTPUT_DIR: /app/WORKING/CACHE
+      COC_TEMPLATE_PATH: /app/templates
+      COC_OUTPUT_DIR: /app/CACHE
     volumes:
       # Mount source code for development
-      - ./WORKING:/app/WORKING:rw
-      - ./DevAssets:/app/DevAssets:ro
+      - ./mrp-filegen/src:/app/src:ro
       # Mount output directory for generated PDFs
-      - ./output:/app/WORKING/CACHE:rw
+      - ./mrp-filegen/output:/app/CACHE:rw
       # Mount templates
-      - ./DevAssets/COC Template.docx:/app/DevAssets/COC Template.docx:ro
+      - ./mrp-filegen/file_templates:/app/templates:ro
       # Mount requirements.txt for installation
-      - ./DevAssets/pythondocker/requirements.txt:/app/requirements.txt:ro
-    working_dir: /app/WORKING
+      - ./mrp-filegen/requirements.txt:/app/requirements.txt:ro
+    working_dir: /app
     networks:
       - amc-mrp-network
     # Install dependencies and keep container running
@@ -79,20 +78,22 @@ services:
     ports:
       - "5001:5000"
     environment:
-      DB_HOST: mysql
-      DB_NAME: amcmrp
-      DB_USER: amc
-      DB_PASSWORD: Workbench.lavender.chrome
+      DB_HOST: ${DB_HOST}
+      DB_NAME: ${DB_NAME}
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD}
       DB_PORT: 3306
-      COC_TEMPLATE_PATH: /app/DevAssets/COC Template.docx
-      COC_OUTPUT_DIR: /app/WORKING/CACHE
-      PO_TEMPLATE_PATH: /app/DevAssets/PO Template.docx
-      PO_OUTPUT_DIR: /app/WORKING/CACHE
+      FLASK_SECRET_KEY: ${FLASK_SECRET_KEY}
+      COC_TEMPLATE_PATH: /app/file_templates/COC Template.docx
+      COC_OUTPUT_DIR: /app/CACHE
+      PO_TEMPLATE_PATH: /app/file_templates/PO Template.docx
+      PO_OUTPUT_DIR: /app/CACHE
     volumes:
-      - ./web:/app/web:rw
-      - ./WORKING:/app/WORKING:rw
-      - ./DevAssets:/app/DevAssets:ro
-    working_dir: /app/web
+      - ./mrp-webapp:/app/web:rw
+      - ./mrp-webapp/CACHE:/app/CACHE:rw
+      - ./mrp-filegen/file_templates:/app/file_templates:ro
+      - ./mrp-filegen/src:/app/generators:ro
+    working_dir: /app/
     networks:
       - amc-mrp-network
     command: |
@@ -101,10 +102,10 @@ services:
         apt-get update && 
         apt-get install -y pandoc texlive-xetex texlive-fonts-recommended texlive-plain-generic libreoffice-writer --no-install-recommends && 
         rm -rf /var/lib/apt/lists/* &&
-        pip install --no-cache-dir -r /app/DevAssets/WebApp/requirements.txt &&
+        pip install --no-cache-dir -r /app/web/requirements.txt &&
         echo 'Waiting for database to be ready...' &&
         sleep 20 &&
-        echo 'Starting web dashboard on port 5000...' &&
+        echo 'Starting web dashboard...' &&
         echo 'Dashboard will be available at: http://localhost:5001' &&
         python run.py
       "

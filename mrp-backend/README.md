@@ -51,6 +51,9 @@ This service acts as a daemon that:
 
 The service will start on `http://localhost:5002`
 
+Authenticate backend container with QBO Oauth via `https://appcenter.intuit.com/connect/oauth2?client_id=ABbK0d9uTJsEGwlP7W9YNqRpTdj0GDVmxMmyWaYVvwZ10CyVC4&response_type=code&scope=com.intuit.quickbooks.accounting&redirect_uri=https://mrp.inge.st/callback&state=test
+`
+
 ### Docker Deployment
 
 1. **Ensure .env file is configured** with QuickBooks credentials

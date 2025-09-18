@@ -42,7 +42,17 @@ search_indexes = {
 QB_CLIENT_ID = os.getenv('QUICKBOOKS_CLIENT_ID')
 QB_CLIENT_SECRET = os.getenv('QUICKBOOKS_CLIENT_SECRET')
 QB_SANDBOX_BASE_URL = os.getenv('QUICKBOOKS_SANDBOX_BASE_URL')
-QB_REDIRECT_URI = 'http://localhost:5002/callback'  # For local development
+QB_COMPANY_ID = os.getenv('QUICKBOOKS_COMPANY_ID', '1234567890')  # Use env var or fallback
+PRODUCTION_URI = os.getenv('PRODUCTION_URI', 'http://localhost:5002')
+QB_REDIRECT_URI = f'{PRODUCTION_URI}/callback'  # Use production URI for callback
+
+# Debug logging for environment variables
+logger.info(f"Environment variables loaded:")
+logger.info(f"QB_CLIENT_ID: {'***' + QB_CLIENT_ID[-4:] if QB_CLIENT_ID else 'None'}")
+logger.info(f"QB_COMPANY_ID: {QB_COMPANY_ID}")
+logger.info(f"QB_SANDBOX_BASE_URL: {QB_SANDBOX_BASE_URL}")
+logger.info(f"PRODUCTION_URI: {PRODUCTION_URI}")
+logger.info(f"QB_REDIRECT_URI: {QB_REDIRECT_URI}")
 
 # Token storage (in production, use secure storage)
 tokens = {
@@ -107,11 +117,15 @@ def ensure_valid_token():
         return refresh_access_token()
     return True
 
-def make_qb_request(endpoint, company_id='1234567890'):
+def make_qb_request(endpoint, company_id=None):
     """Make a request to QuickBooks API"""
     if not tokens['access_token']:
         logger.error("No access token available")
         return None
+
+    # Use provided company_id or fall back to environment variable
+    company_id = company_id or QB_COMPANY_ID
+    logger.info(f"Using QuickBooks Company ID: {company_id}")
 
     url = f"https://sandbox-quickbooks.api.intuit.com/v3/company/{company_id}/{endpoint}"
     headers = {
@@ -279,6 +293,17 @@ def cache_status():
         'items_count': len(cached_data['items'])
     })
 
+@app.route('/api/config', methods=['GET'])
+def get_config():
+    """Get current configuration for debugging"""
+    return jsonify({
+        'company_id': QB_COMPANY_ID,
+        'client_id': QB_CLIENT_ID[:10] + '...' if QB_CLIENT_ID else None,  # Partial for security
+        'has_access_token': tokens['access_token'] is not None,
+        'has_refresh_token': tokens['refresh_token'] is not None,
+        'token_expires_at': tokens['expires_at'].isoformat() if tokens['expires_at'] else None
+    })
+
 @app.route('/api/cache/refresh', methods=['POST'])
 def manual_refresh():
     update_cache()
@@ -287,8 +312,27 @@ def manual_refresh():
 # OAuth callback route (for initial setup)
 @app.route('/callback')
 def oauth_callback():
+    logger.info("OAuth callback received")
+    logger.info(f"Request args: {dict(request.args)}")
+    logger.info(f"Request method: {request.method}")
+    logger.info(f"Request URL: {request.url}")
+
     code = request.args.get('code')
+    error = request.args.get('error')
+    state = request.args.get('state')
+
+    if error:
+        logger.error(f"OAuth error: {error}")
+        logger.error(f"Error description: {request.args.get('error_description')}")
+        return jsonify({
+            'error': error,
+            'error_description': request.args.get('error_description')
+        }), 400
+
     if code:
+        logger.info(f"Authorization code received: {code[:10]}...")
+        logger.info(f"Using redirect URI: {QB_REDIRECT_URI}")
+
         # Exchange code for tokens
         data = {
             'grant_type': 'authorization_code',
@@ -308,22 +352,53 @@ def oauth_callback():
             'Content-Type': 'application/x-www-form-urlencoded'
         }
 
-        response = requests.post(
-            'https://oauth.platform.intuit.com/oauth2/v1/tokens/bearer',
-            data=data,
-            headers=headers
-        )
+        logger.info("Exchanging authorization code for tokens...")
 
-        if response.status_code == 200:
-            token_data = response.json()
-            tokens['access_token'] = token_data['access_token']
-            tokens['refresh_token'] = token_data['refresh_token']
-            tokens['expires_at'] = datetime.now() + timedelta(seconds=token_data['expires_in'])
-            return jsonify({'message': 'OAuth successful'})
-        else:
-            return jsonify({'error': 'OAuth failed'}), 400
+        try:
+            response = requests.post(
+                'https://oauth.platform.intuit.com/oauth2/v1/tokens/bearer',
+                data=data,
+                headers=headers,
+                timeout=30
+            )
 
-    return jsonify({'error': 'No code provided'}), 400
+            logger.info(f"Token exchange response status: {response.status_code}")
+
+            if response.status_code == 200:
+                token_data = response.json()
+                tokens['access_token'] = token_data['access_token']
+                tokens['refresh_token'] = token_data['refresh_token']
+                tokens['expires_at'] = datetime.now() + timedelta(seconds=token_data['expires_in'])
+
+                logger.info("OAuth successful! Tokens obtained and stored.")
+                logger.info(f"Access token expires in: {token_data['expires_in']} seconds")
+
+                return jsonify({
+                    'message': 'OAuth successful',
+                    'expires_in': token_data['expires_in'],
+                    'token_type': token_data.get('token_type', 'bearer')
+                })
+            else:
+                logger.error(f"OAuth failed with status {response.status_code}")
+                logger.error(f"Response: {response.text}")
+                return jsonify({
+                    'error': 'OAuth failed',
+                    'status_code': response.status_code,
+                    'response': response.text
+                }), 400
+
+        except requests.exceptions.RequestException as e:
+            logger.error(f"Request exception during token exchange: {str(e)}")
+            return jsonify({
+                'error': 'Request failed',
+                'details': str(e)
+            }), 500
+
+    logger.warning("No authorization code provided in callback")
+    return jsonify({
+        'error': 'No code provided',
+        'received_args': dict(request.args)
+    }), 400
 
 def start_scheduler():
     """Start the background scheduler for cache updates"""

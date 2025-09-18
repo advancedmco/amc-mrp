@@ -95,32 +95,6 @@ The dashboard will be ready in about 60 seconds after running `docker-compose up
 - Integrates with existing COC and PO generation systems
 - Maintains full audit trail and logging
 
-### File Structure
-
-```
-web/
-├── app.py              # Main Flask application
-├── run.py              # Startup script
-├── requirements.txt    # Python dependencies
-├── templates/
-│   ├── base.html      # Base template with styling
-│   └── dashboard.html # Main dashboard template
-└── README.md          # This file
-```
-
-### Environment Variables
-
-The application uses these environment variables (set automatically by `run.py`):
-
-- `DB_HOST`: MySQL host (default: mysql)
-- `DB_NAME`: Database name (default: amcmrp)
-- `DB_USER`: Database user (default: amc)
-- `DB_PASSWORD`: Database password
-- `DB_PORT`: Database port (default: 3306)
-- `COC_TEMPLATE_PATH`: Path to COC template
-- `PO_TEMPLATE_PATH`: Path to PO template
-- `COC_OUTPUT_DIR`: COC output directory
-- `PO_OUTPUT_DIR`: PO output directory
 
 ## Security Notes
 

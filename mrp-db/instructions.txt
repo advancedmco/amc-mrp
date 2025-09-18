@@ -1,0 +1,10 @@
+MRP Database
+- Working dir for this component is mrp-db/
+- Contains supplimental data QBO isn't tracking. 
+- Maintain single source of truth in QBO
+- Saves generated documents data so they can be listed and recalled at any time via web dashboard
+- Generate a DDL in which the following items exist: BOM, Work Order, Parts, Vendors, Customers, Purchase Orders, Certificates.
+- A BOM contains sub items which can be materials like 1018, 4140, 303, 6061-T5, or processes like zinc, phosphate, DFL, chrome, or secondary ops like grinding, machineing, or supplimental material like shipping, or labor costs. Each line item must be dynamically arrangable in purchase order by click and drag from the web dashboard. Each BOM item must have a unique ID which can be linked to a PO at a later time (optional). Each can have an estimated price and a place for actual price, both optional. 
+- Parts table with unique part id, also non-duplicate part number, part name, filepath
+- We must be able to have customer PO table with unique ID, PO number, issue date, filepath, optional due date.
+- Work orders table which references a BOM with a part number, which must then attach to a customer PO and line item but are attached to a customer PO which contains a POdate, due date, and only 1 line item from the customer PO. I must be able to generate 1 or more certificates or COC for a work order assigned to part name and number and quantity within the order. The work order will track the stage and will note the status of each BOM line item (pending, in progress, delayed, ready). Work orders need to have an optional working quantity for each part and BOM stage in which I can specify how many parts exist at this stage. When qty is referenced from this work order, the QTY for each WO should be derived from the latest QTY in the working qty data.

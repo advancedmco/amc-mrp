@@ -2,7 +2,7 @@ services:
   # MySQL Database Service
   mysql:
     image: mysql:8.0
-    container_name: amc-mrp-mysql
+    container_name: amc-mrp-db
     environment:
       MYSQL_ROOT_PASSWORD: toor
       # Database will be created by DDL.sql script
@@ -28,9 +28,9 @@ services:
       - /var/lib/mysql
 
   # Python Application Service
-  python-app:
+  gen-app:
     image: python:3.11-slim
-    container_name: amc-mrp-python
+    container_name: amc-mrp-generator
     depends_on:
       mysql:
         condition: service_healthy

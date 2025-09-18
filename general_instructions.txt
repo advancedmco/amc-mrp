@@ -1,4 +1,4 @@
-Rules for development
+General Rules for development
 - always check this file to see if anything has changed
 - ensure docker compose is running and online
 - edit the same files you are tasked to repair

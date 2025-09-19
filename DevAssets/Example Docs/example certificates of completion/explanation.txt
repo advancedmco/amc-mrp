@@ -1,8 +1,0 @@
-In this folder are Certificates of Completion which will need to be generated after an invoice is created in quickbooks online. 
-- IAW/DWG is the part number
-- Description: is Description
-- PO is the customer PO specified in the invoice
-- Final QTY which will be retreived from the latest count of quantity from the work order in the oldest phase, likely "ready to ship".
-- Date will be the date the entry is created which is auto inserted (with the option to override)
-
-All above data must be reduntantly stored in fields in a database upon generating in order to recall historical certs for archival purposes. Our military client is the only one who requires this at the moment, so the main text above will remain embeded in our template for the moment. 

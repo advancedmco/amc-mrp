@@ -1,8 +1,0 @@
-Web app
-- keep all web dev code in mrp-webapp root. Note for the moment that file generator code is separat in the mrp-filegen folder.
-- dashboard for all open work orders on page 1, scrollable and clickable which should link to the workorder which will contain everything about that specific job that is shown in the database, open quotes also clickable which can be followed up with and either dismissed or converted to work orders. See inspiration from example-dash.html
-- left-sided nav bar with search with search as you type for data like Dashboard, Work Orders, part name, part number. The search should be fuzzy. 
-- Brand logo on the upper left corner hyperlinked to home page dashboard view.
-- Work order page with filter option, default view is work order state not closed, order by due date DESC. Work order rows can be clicked to open item work order where the BOM which makes it up can be viewed in order of operation, generating COCs with work order info after the job is complete, generating POs for secondard operations on the work for a specific vendor and operation.
-- PO page for selecting a vendor, pulling a part name and description from parent work order from which it was clicked as well as material alloy and current quantity from work order with the option to change. Allow description field to describe the work that is needed.
-- Any files generated should be output to an appropriate folder in the web app and sent to download over the browser.

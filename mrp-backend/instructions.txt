@@ -1,6 +1,0 @@
-Quickbooks integration & DB Connector
-- Project lives in mrp-backend folder
-- Make a QBO daemon that runs, maintains keys and keeps keys alive, ensure refresh tokens aren't left to expire. Use lowest allowable check in rate for this.
-- Primary initial goal is to pull a full JSON list of vendors, customers and products/services. 
-- Cache those lists every hour and index the content in memory
-- Open access for the web-app to be able to search the following indexes: client names, vendor names, client_pos, product names, product descriptions, part names, part numbers. Make search fast and allow for live-search query, limit 15 items.

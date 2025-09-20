@@ -54,12 +54,49 @@ logger.info(f"QB_SANDBOX_BASE_URL: {QB_SANDBOX_BASE_URL}")
 logger.info(f"PRODUCTION_URI: {PRODUCTION_URI}")
 logger.info(f"QB_REDIRECT_URI: {QB_REDIRECT_URI}")
 
-# Token storage (in production, use secure storage)
+# Token storage file path
+TOKEN_FILE = '/tmp/qb_tokens.json'
+
+# Token storage (with file persistence)
 tokens = {
     'access_token': None,
     'refresh_token': None,
-    'expires_at': None
+    'expires_at': None,
+    'company_id': None
 }
+
+def load_tokens():
+    """Load tokens from file if they exist"""
+    global tokens
+    try:
+        if os.path.exists(TOKEN_FILE):
+            with open(TOKEN_FILE, 'r') as f:
+                saved_tokens = json.load(f)
+                tokens.update(saved_tokens)
+                # Convert expires_at string back to datetime
+                if tokens['expires_at']:
+                    tokens['expires_at'] = datetime.fromisoformat(tokens['expires_at'])
+                logger.info("Tokens loaded from file")
+                logger.info(f"Token expires at: {tokens['expires_at']}")
+    except Exception as e:
+        logger.error(f"Error loading tokens: {str(e)}")
+
+def save_tokens():
+    """Save tokens to file"""
+    try:
+        # Convert datetime to string for JSON serialization
+        tokens_to_save = tokens.copy()
+        if tokens_to_save['expires_at']:
+            tokens_to_save['expires_at'] = tokens_to_save['expires_at'].isoformat()
+        
+        with open(TOKEN_FILE, 'w') as f:
+            json.dump(tokens_to_save, f)
+        logger.info("Tokens saved to file")
+    except Exception as e:
+        logger.error(f"Error saving tokens: {str(e)}")
+
+# Load tokens on startup
+load_tokens()
 
 def refresh_access_token():
     """Refresh the access token using refresh token"""
@@ -96,6 +133,7 @@ def refresh_access_token():
             tokens['access_token'] = token_data['access_token']
             tokens['refresh_token'] = token_data['refresh_token']
             tokens['expires_at'] = datetime.now() + timedelta(seconds=token_data['expires_in'])
+            save_tokens()  # Save tokens to file
             logger.info("Access token refreshed successfully")
             return True
         else:
@@ -152,10 +190,16 @@ def fetch_customers():
         return []
 
     try:
-        response = make_qb_request('customer')
-        if response and 'Customer' in response:
-            return response['Customer']
-        return []
+        # Use proper QuickBooks API query syntax
+        response = make_qb_request("query?query=SELECT * FROM Customer MAXRESULTS 1000")
+        if response and 'QueryResponse' in response and 'Customer' in response['QueryResponse']:
+            customers = response['QueryResponse']['Customer']
+            logger.info(f"Successfully fetched {len(customers)} customers")
+            return customers
+        else:
+            logger.warning("No customers found in QuickBooks response")
+            logger.debug(f"Response structure: {response}")
+            return []
     except Exception as e:
         logger.error(f"Error fetching customers: {str(e)}")
         return []
@@ -167,10 +211,16 @@ def fetch_vendors():
         return []
 
     try:
-        response = make_qb_request('vendor')
-        if response and 'Vendor' in response:
-            return response['Vendor']
-        return []
+        # Use proper QuickBooks API query syntax
+        response = make_qb_request("query?query=SELECT * FROM Vendor MAXRESULTS 1000")
+        if response and 'QueryResponse' in response and 'Vendor' in response['QueryResponse']:
+            vendors = response['QueryResponse']['Vendor']
+            logger.info(f"Successfully fetched {len(vendors)} vendors")
+            return vendors
+        else:
+            logger.warning("No vendors found in QuickBooks response")
+            logger.debug(f"Response structure: {response}")
+            return []
     except Exception as e:
         logger.error(f"Error fetching vendors: {str(e)}")
         return []
@@ -182,10 +232,16 @@ def fetch_items():
         return []
 
     try:
-        response = make_qb_request('item')
-        if response and 'Item' in response:
-            return response['Item']
-        return []
+        # Use proper QuickBooks API query syntax
+        response = make_qb_request("query?query=SELECT * FROM Item MAXRESULTS 1000")
+        if response and 'QueryResponse' in response and 'Item' in response['QueryResponse']:
+            items = response['QueryResponse']['Item']
+            logger.info(f"Successfully fetched {len(items)} items")
+            return items
+        else:
+            logger.warning("No items found in QuickBooks response")
+            logger.debug(f"Response structure: {response}")
+            return []
     except Exception as e:
         logger.error(f"Error fetching items: {str(e)}")
         return []
@@ -369,14 +425,28 @@ def oauth_callback():
                 tokens['access_token'] = token_data['access_token']
                 tokens['refresh_token'] = token_data['refresh_token']
                 tokens['expires_at'] = datetime.now() + timedelta(seconds=token_data['expires_in'])
-
+                
+                # Store company ID from callback if available
+                realm_id = request.args.get('realmId')
+                if realm_id:
+                    tokens['company_id'] = realm_id
+                    logger.info(f"Company ID stored: {realm_id}")
+                
+                save_tokens()  # Save tokens to file
                 logger.info("OAuth successful! Tokens obtained and stored.")
                 logger.info(f"Access token expires in: {token_data['expires_in']} seconds")
+
+                # Trigger immediate cache update with new tokens
+                try:
+                    update_cache()
+                except Exception as e:
+                    logger.error(f"Error during initial cache update: {str(e)}")
 
                 return jsonify({
                     'message': 'OAuth successful',
                     'expires_in': token_data['expires_in'],
-                    'token_type': token_data.get('token_type', 'bearer')
+                    'token_type': token_data.get('token_type', 'bearer'),
+                    'company_id': realm_id
                 })
             else:
                 logger.error(f"OAuth failed with status {response.status_code}")

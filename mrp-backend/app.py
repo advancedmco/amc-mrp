@@ -260,7 +260,10 @@ def build_search_indexes():
             search_indexes['client_names'].append({
                 'id': customer.get('Id'),
                 'name': customer['Name'],
-                'type': 'customer'
+                'type': 'customer',
+                'active': customer.get('Active', True),
+                'company_name': customer.get('CompanyName', customer.get('Name')),
+                'email': customer.get('PrimaryEmailAddr', {}).get('Address') if customer.get('PrimaryEmailAddr') else None
             })
 
     # Build vendor names index
@@ -269,7 +272,10 @@ def build_search_indexes():
             search_indexes['vendor_names'].append({
                 'id': vendor.get('Id'),
                 'name': vendor['Name'],
-                'type': 'vendor'
+                'type': 'vendor',
+                'active': vendor.get('Active', True),
+                'company_name': vendor.get('CompanyName', vendor.get('Name')),
+                'email': vendor.get('PrimaryEmailAddr', {}).get('Address') if vendor.get('PrimaryEmailAddr') else None
             })
 
     # Build product names and descriptions index
@@ -278,14 +284,54 @@ def build_search_indexes():
             search_indexes['product_names'].append({
                 'id': item.get('Id'),
                 'name': item['Name'],
-                'type': 'item'
+                'type': 'item',
+                'active': item.get('Active', True),
+                'item_type': item.get('Type'),
+                'sku': item.get('Sku'),
+                'unit_price': item.get('UnitPrice')
             })
+            
+            # Also add to part_names index (alias for product_names)
+            search_indexes['part_names'].append({
+                'id': item.get('Id'),
+                'name': item['Name'],
+                'type': 'item',
+                'active': item.get('Active', True),
+                'item_type': item.get('Type'),
+                'sku': item.get('Sku'),
+                'unit_price': item.get('UnitPrice')
+            })
+            
+            # Add SKU to part_numbers index if available
+            if item.get('Sku'):
+                search_indexes['part_numbers'].append({
+                    'id': item.get('Id'),
+                    'name': item['Name'],
+                    'sku': item.get('Sku'),
+                    'type': 'item',
+                    'active': item.get('Active', True),
+                    'item_type': item.get('Type'),
+                    'unit_price': item.get('UnitPrice')
+                })
+        
         if 'Description' in item and item['Description']:
             search_indexes['product_descriptions'].append({
                 'id': item.get('Id'),
+                'name': item.get('Name'),
                 'description': item['Description'],
-                'type': 'item'
+                'type': 'item',
+                'active': item.get('Active', True),
+                'item_type': item.get('Type'),
+                'sku': item.get('Sku'),
+                'unit_price': item.get('UnitPrice')
             })
+
+    # Build client_pos index (Purchase Orders from customers - if available)
+    # Note: This would require additional QuickBooks API calls for PurchaseOrder entities
+    # For now, we'll leave this empty but the structure is ready
+    search_indexes['client_pos'] = []
+    
+    logger.info(f"Search indexes built: {', '.join([f'{k}({len(v)})' for k, v in search_indexes.items() if v])}")
 
 def update_cache():
     """Update cached data from QuickBooks"""
@@ -313,13 +359,39 @@ def search_index(index_name, query, limit=15):
 
     results = []
     for item in index:
-        if index_name == 'client_names' and query_lower in item['name'].lower():
-            results.append(item)
-        elif index_name == 'vendor_names' and query_lower in item['name'].lower():
-            results.append(item)
-        elif index_name == 'product_names' and query_lower in item['name'].lower():
-            results.append(item)
-        elif index_name == 'product_descriptions' and 'description' in item and query_lower in item['description'].lower():
+        match_found = False
+        
+        if index_name in ['client_names', 'vendor_names']:
+            # Search in name, company_name, and email
+            if (query_lower in item['name'].lower() or 
+                (item.get('company_name') and query_lower in item['company_name'].lower()) or
+                (item.get('email') and query_lower in item['email'].lower())):
+                match_found = True
+                
+        elif index_name in ['product_names', 'part_names']:
+            # Search in name and SKU
+            if (query_lower in item['name'].lower() or 
+                (item.get('sku') and query_lower in item['sku'].lower())):
+                match_found = True
+                
+        elif index_name == 'part_numbers':
+            # Search in SKU and name
+            if (query_lower in item['sku'].lower() or 
+                query_lower in item['name'].lower()):
+                match_found = True
+                
+        elif index_name == 'product_descriptions':
+            # Search in description and name
+            if (query_lower in item['description'].lower() or 
+                query_lower in item['name'].lower()):
+                match_found = True
+                
+        elif index_name == 'client_pos':
+            # Future implementation for client purchase orders
+            # Currently empty but structure is ready
+            pass
+            
+        if match_found:
             results.append(item)
 
     return results[:limit]
@@ -364,6 +436,56 @@ def get_config():
 def manual_refresh():
     update_cache()
     return jsonify({'message': 'Cache refreshed successfully'})
+
+@app.route('/api/indexes/status', methods=['GET'])
+def indexes_status():
+    """Get status of all search indexes"""
+    return jsonify({
+        'indexes': {name: len(index) for name, index in search_indexes.items()},
+        'total_indexed_items': sum(len(index) for index in search_indexes.values()),
+        'available_indexes': list(search_indexes.keys())
+    })
+
+@app.route('/api/data/customers', methods=['GET'])
+def get_customers():
+    """Get all cached customer data (for debugging)"""
+    limit = int(request.args.get('limit', 50))
+    return jsonify({
+        'customers': cached_data['customers'][:limit],
+        'total': len(cached_data['customers']),
+        'showing': min(limit, len(cached_data['customers']))
+    })
+
+@app.route('/api/data/vendors', methods=['GET'])
+def get_vendors():
+    """Get all cached vendor data (for debugging)"""
+    limit = int(request.args.get('limit', 50))
+    return jsonify({
+        'vendors': cached_data['vendors'][:limit],
+        'total': len(cached_data['vendors']),
+        'showing': min(limit, len(cached_data['vendors']))
+    })
+
+@app.route('/api/data/items', methods=['GET'])
+def get_items():
+    """Get all cached item data (for debugging)"""
+    limit = int(request.args.get('limit', 50))
+    return jsonify({
+        'items': cached_data['items'][:limit],
+        'total': len(cached_data['items']),
+        'showing': min(limit, len(cached_data['items']))
+    })
+
+@app.route('/api/health', methods=['GET'])
+def health_check():
+    """Health check endpoint"""
+    return jsonify({
+        'status': 'healthy',
+        'timestamp': datetime.now().isoformat(),
+        'version': '1.0.0',
+        'authenticated': tokens['access_token'] is not None,
+        'cache_age_minutes': (datetime.now() - cached_data['last_updated']).total_seconds() / 60 if cached_data['last_updated'] else None
+    })
 
 # OAuth callback route (for initial setup)
 @app.route('/callback')

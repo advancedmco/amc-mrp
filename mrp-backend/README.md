@@ -93,21 +93,210 @@ SECRET_KEY=your_secret_key_here
 
 ## API Endpoints
 
-### Search Endpoints
+### 🔍 Search Endpoints
+Live search functionality with fast in-memory indexing. All search endpoints support partial matching and are case-insensitive.
 
-- `GET /api/search/client_names?q={query}&limit=15`
-- `GET /api/search/vendor_names?q={query}&limit=15`
-- `GET /api/search/product_names?q={query}&limit=15`
-- `GET /api/search/product_descriptions?q={query}&limit=15`
+#### `GET /api/search/{index_name}`
+**Parameters:**
+- `q` (required): Search query string
+- `limit` (optional): Maximum results to return (default: 15, max: 100)
 
-### Management Endpoints
+**Available Indexes:**
+- `client_names` - Search customer names, company names, and email addresses
+- `vendor_names` - Search vendor names, company names, and email addresses  
+- `product_names` - Search product/service names and SKUs
+- `product_descriptions` - Search product descriptions and names
+- `part_names` - Alias for product_names (search product names and SKUs)
+- `part_numbers` - Search SKUs and product names
+- `client_pos` - Client purchase orders (future implementation)
 
-- `GET /api/cache/status` - Get cache status and counts
-- `POST /api/cache/refresh` - Manually trigger cache refresh
+**Example Requests:**
+```bash
+# Search for customers containing "acme"
+GET /api/search/client_names?q=acme&limit=10
 
-### OAuth Endpoints
+# Search for products containing "widget"
+GET /api/search/product_names?q=widget&limit=5
 
-- `GET /callback` - OAuth2 callback handler
+# Search for vendors by email domain
+GET /api/search/vendor_names?q=@example.com&limit=20
+```
+
+**Response Format:**
+```json
+{
+  "query": "search_term",
+  "results": [
+    {
+      "id": "123",
+      "name": "Product Name",
+      "type": "item",
+      "active": true,
+      "sku": "PROD-001",
+      "unit_price": 29.99
+    }
+  ],
+  "total": 1
+}
+```
+
+### 📊 Cache Management Endpoints
+
+#### `GET /api/cache/status`
+Get current cache status and data counts.
+
+**Response:**
+```json
+{
+  "last_updated": "2025-09-20T19:47:30.642440",
+  "customers_count": 25,
+  "vendors_count": 12,
+  "items_count": 150
+}
+```
+
+#### `POST /api/cache/refresh`
+Manually trigger cache refresh from QuickBooks.
+
+**Response:**
+```json
+{
+  "message": "Cache refreshed successfully"
+}
+```
+
+### 🔧 System Information Endpoints
+
+#### `GET /api/config`
+Get current system configuration (for debugging).
+
+**Response:**
+```json
+{
+  "company_id": "9341455374253726",
+  "client_id": "ABbK0d9uTJ...",
+  "has_access_token": true,
+  "has_refresh_token": true,
+  "token_expires_at": "2025-09-20T20:47:30.642440"
+}
+```
+
+#### `GET /api/health`
+Health check endpoint with system status.
+
+**Response:**
+```json
+{
+  "status": "healthy",
+  "timestamp": "2025-09-20T19:47:30.642440",
+  "version": "1.0.0",
+  "authenticated": true,
+  "cache_age_minutes": 15.5
+}
+```
+
+#### `GET /api/indexes/status`
+Get status of all search indexes.
+
+**Response:**
+```json
+{
+  "indexes": {
+    "client_names": 25,
+    "vendor_names": 12,
+    "product_names": 150,
+    "product_descriptions": 89,
+    "part_names": 150,
+    "part_numbers": 45,
+    "client_pos": 0
+  },
+  "total_indexed_items": 471,
+  "available_indexes": ["client_names", "vendor_names", "product_names", ...]
+}
+```
+
+### 📋 Data Access Endpoints (Debug/Development)
+
+#### `GET /api/data/customers`
+Get raw customer data from cache.
+
+**Parameters:**
+- `limit` (optional): Maximum records to return (default: 50)
+
+#### `GET /api/data/vendors`
+Get raw vendor data from cache.
+
+**Parameters:**
+- `limit` (optional): Maximum records to return (default: 50)
+
+#### `GET /api/data/items`
+Get raw item data from cache.
+
+**Parameters:**
+- `limit` (optional): Maximum records to return (default: 50)
+
+### 🔐 OAuth Endpoints
+
+#### `GET /callback`
+OAuth2 callback handler for QuickBooks authentication.
+
+**Note:** This endpoint is called automatically by QuickBooks during the OAuth flow.
+
+## 🧪 Testing the API
+
+### Quick Test Commands
+
+```bash
+# Check if service is running
+curl http://localhost:5002/api/health
+
+# Check authentication status
+curl http://localhost:5002/api/config
+
+# Check cache status
+curl http://localhost:5002/api/cache/status
+
+# Check search indexes
+curl http://localhost:5002/api/indexes/status
+
+# Test search functionality (after authentication)
+curl "http://localhost:5002/api/search/client_names?q=test&limit=5"
+curl "http://localhost:5002/api/search/product_names?q=widget&limit=10"
+
+# Manually refresh cache
+curl -X POST http://localhost:5002/api/cache/refresh
+
+# Get sample data
+curl "http://localhost:5002/api/data/customers?limit=5"
+curl "http://localhost:5002/api/data/items?limit=10"
+```
+
+### PowerShell Test Commands (Windows)
+
+```powershell
+# Check service health
+Invoke-RestMethod -Uri "http://localhost:5002/api/health" -Method Get
+
+# Check cache status
+Invoke-RestMethod -Uri "http://localhost:5002/api/cache/status" -Method Get
+
+# Test search
+Invoke-RestMethod -Uri "http://localhost:5002/api/search/client_names?q=test&limit=5" -Method Get
+
+# Refresh cache
+Invoke-RestMethod -Uri "http://localhost:5002/api/cache/refresh" -Method Post
+```
+
+### Using the Test Script
+
+Run the comprehensive test script:
+```bash
+# Inside Docker container
+docker exec amc-mrp-backend python test_qb_integration.py
+
+# Or locally (if running outside Docker)
+python test_qb_integration.py
+```
 
 ## Data Structure
 

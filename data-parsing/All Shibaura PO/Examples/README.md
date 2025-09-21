@@ -41,7 +41,7 @@ This will:
 
 ### 2. Prepare Your PDFs
 
-Place your Shibaura PO PDF files in the `../Allpos/` directory (relative to the Examples folder).
+Place your Shibaura PO PDF files in the current directory (same as extractor.py).
 
 ### 3. Run the Extractor
 
@@ -95,7 +95,7 @@ The extractor produces a CSV file with the following columns:
 ## Configuration
 
 ### Input Directory
-By default, the script looks for PDF files in `../Allpos/`. To change this, modify the `input_dir` variable in `extractor.py`:
+By default, the script looks for PDF files in the current directory. To change this, modify the `input_dir` variable in `extractor.py`:
 
 ```python
 input_dir = Path('./your-pdf-directory')
@@ -133,7 +133,7 @@ python extractor.py
 
 ### Common Issues
 
-1. **No PDFs found**: Ensure PDF files are in the correct directory (`../Allpos/` by default)
+1. **No PDFs found**: Ensure PDF files are in the current directory
 
 2. **Virtual environment issues**: 
    ```bash

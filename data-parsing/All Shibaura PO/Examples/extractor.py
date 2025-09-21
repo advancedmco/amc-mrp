@@ -59,10 +59,8 @@ def clean_description(desc):
         return ''
     
     # Remove common contamination patterns
-    desc = re.sub(r'\*QUOTE:.*', '', desc, flags=re.IGNORECASE | re.MULTILINE)
-    desc = re.sub(r'QUOTE:.*', '', desc, flags=re.IGNORECASE | re.MULTILINE)
-    desc = re.sub(r'\*DELIVERY:.*', '', desc, flags=re.IGNORECASE | re.MULTILINE)
-    desc = re.sub(r'DELIVERY:.*', '', desc, flags=re.IGNORECASE | re.MULTILINE)
+    desc = re.sub(r'\*QUOTE.*', '', desc, flags=re.IGNORECASE | re.MULTILINE)
+    desc = re.sub(r'\*DELIVERY.*', '', desc, flags=re.IGNORECASE | re.MULTILINE)
     desc = re.sub(r'upervisor.*', '', desc, flags=re.IGNORECASE)
     desc = re.sub(r'https?://.*', '', desc, flags=re.IGNORECASE)
     desc = re.sub(r'\d{1,2}/\d{1,2}/\d{4}.*', '', desc)
@@ -97,15 +95,10 @@ def is_numeric(text):
 
 def extract_line_items(page):
     """Extract line items with advanced parsing logic."""
-    # Try different table extraction strategies
-    strategies = [
-        {'vertical_strategy': 'text', 'horizontal_strategy': 'text', 'snap_tolerance': 3},
-        {'vertical_strategy': 'lines', 'horizontal_strategy': 'lines'},
-        {'vertical_strategy': 'text', 'horizontal_strategy': 'lines', 'snap_tolerance': 5},
-    ]
-    
-    for strategy in strategies:
-        table = page.extract_table(strategy)
+    # Use find_tables for better table detection
+    tables = page.find_tables()
+    for table_obj in tables:
+        table = table_obj.extract()
         if table and len(table) > 1:
             line_items = process_table_advanced(table)
             if line_items:
@@ -226,62 +219,14 @@ def process_table_advanced(table):
             
         # Check if this is a single line item row (starts with line number)
         if len(row) > 0 and is_line_number(row[0]):
-            # Extract data based on expected positions and validation
             ln = row[0]
             part = row[1] if len(row) > 1 else ''
-            
-            # Find description - usually in position 2, but validate
-            description = ''
-            due_date = ''
-            qty = ''
+            description = clean_description(row[2]) if len(row) > 2 else ''
+            due_date = row[3] if len(row) > 3 else ''
+            qty = row[5] if len(row) > 5 else ''
+            unit_price = row[8] if len(row) > 8 else ''
+            extended_price = row[9] if len(row) > 9 else ''
             amount = '0'  # Default amount as shown in expected output
-            unit_price = ''
-            extended_price = ''
-            
-            # Look for description - try to get the complete description
-            description = ''
-            if len(row) > 2 and row[2]:
-                # Try to get complete description from position 2
-                desc_candidate = row[2]
-                # If it looks truncated (doesn't end with ] or complete word), try to find more
-                if desc_candidate and not desc_candidate.strip().endswith(']'):
-                    # Look for continuation in next columns
-                    for i in range(3, min(len(row), 6)):
-                        if row[i] and not is_valid_date(row[i]) and not is_numeric(row[i]):
-                            desc_candidate += ' ' + row[i]
-                            if row[i].strip().endswith(']'):
-                                break
-                description = clean_description(desc_candidate)
-            
-            # If still no description found, try other positions
-            if not description:
-                for i in range(2, min(len(row), 5)):
-                    if row[i] and not is_valid_date(row[i]) and not is_numeric(row[i]):
-                        description = clean_description(row[i])
-                        break
-            
-            # Look for due date
-            for i in range(2, len(row)):
-                if is_valid_date(row[i]):
-                    due_date = row[i]
-                    break
-            
-            # Look for numeric values (qty, unit price, extended price)
-            numeric_values = []
-            for i in range(2, len(row)):
-                if is_numeric(row[i]) and row[i].strip():
-                    numeric_values.append(row[i].strip())
-            
-            # Assign numeric values based on position and value
-            if len(numeric_values) >= 3:
-                qty = numeric_values[0]
-                unit_price = numeric_values[1]
-                extended_price = numeric_values[2]
-            elif len(numeric_values) == 2:
-                unit_price = numeric_values[0]
-                extended_price = numeric_values[1]
-            elif len(numeric_values) == 1:
-                extended_price = numeric_values[0]
             
             line_item = {
                 'Ln': ln,
@@ -336,24 +281,53 @@ def write_to_csv(line_items, output_file, write_header=False):
             writer.writeheader()
         for item in line_items:
             # Clean and standardize data before writing
+            due_date = item.get('Due_Date', '').strip()
+            order_date = item.get('Order_Date', '').strip()
+            qty = item.get('Qty_Ordered', '').strip()
+            unit_price = item.get('Unit_Price', '').strip().replace('$', '').replace(',', '')
+            extended_price = item.get('Extended_Price', '').strip().replace('$', '').replace(',', '')
+            grand_total = str(item.get('Grand_Total', '')).replace('$', '').replace(',', '')
+            
+            # Format dates to m/d/yy without leading zeros
+            def format_date(date_str):
+                if not date_str:
+                    return date_str
+                try:
+                    dt = datetime.strptime(date_str, '%m/%d/%Y')
+                    m = dt.month
+                    d = dt.day
+                    y = dt.year % 100
+                    return f'{m}/{d}/{y}'
+                except:
+                    return date_str
+            
+            due_date = format_date(due_date)
+            order_date = format_date(order_date)
+            
+            # Remove .00 from whole numbers
+            qty = re.sub(r'\.00$', '', qty)
+            unit_price = re.sub(r'\.00$', '', unit_price)
+            extended_price = re.sub(r'\.00$', '', extended_price)
+            grand_total = re.sub(r'\.0$', '', grand_total)
+            
             clean_item = {
                 'Ln': item.get('Ln', '').strip(),
                 'Part': item.get('Part', '').strip(),
                 'Description': item.get('Description', '').strip(),
-                'Due Date': item.get('Due_Date', '').strip(),
-                'Qty': item.get('Qty_Ordered', '').strip(),
+                'Due Date': due_date,
+                'Qty': qty,
                 'Amount': item.get('Amount', '').strip(),
-                'Unit Price': item.get('Unit_Price', '').strip().replace('$', '').replace(',', ''),
-                'Extended Price': item.get('Extended_Price', '').strip().replace('$', '').replace(',', ''),
-                'Order Date': item.get('Order_Date', '').strip(),
-                'Grand Total': str(item.get('Grand_Total', '')).replace('$', '').replace(',', ''),
+                'Unit Price': unit_price,
+                'Extended Price': extended_price,
+                'Order Date': order_date,
+                'Grand Total': grand_total,
                 'PO': item.get('PO', '').strip()
             }
             writer.writerow(clean_item)
 
 def main():
     # Configuration
-    input_dir = Path('.')
+    input_dir = Path('../Allpos')
     output_csv = 'purchase_orders.csv'
     
     # Create output CSV with headers

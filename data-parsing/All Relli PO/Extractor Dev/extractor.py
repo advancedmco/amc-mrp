@@ -6,27 +6,25 @@ from datetime import datetime
 
 def extract_po_details(page_text):
     """Extract PO number and date from the page text."""
-    # Try different patterns for PO number and date
-    patterns = [
-        r'P\.O\. Number / Date:\s*([A-Z0-9-]+)\s+(\d{2}/\d{2}/\d{4})',
-        r'P\.O\. Number / Date:\s*([A-Z0-9-]+)\s+(\d{1,2}/\d{1,2}/\d{4})',
-        r'PO-(\d+)\s+(\d{2}/\d{2}/\d{4})',
-        r'PO-(\d+)\s+(\d{1,2}/\d{1,2}/\d{4})'
-    ]
+    # Look for Relli PO format: "PURCHASE ORDER 554002-X1572-1" or just "705677-X1572-1"
+    po_match = re.search(r'PURCHASE ORDER\s*[-]*\s*([0-9-]+[A-Z0-9-]+)', page_text)
+    if not po_match:
+        # Try alternative format without "PURCHASE ORDER" text
+        po_match = re.search(r'([0-9]+-X1572-[0-9]+)', page_text)
     
-    for pattern in patterns:
-        po_match = re.search(pattern, page_text)
-        if po_match:
-            po_number = po_match.group(1)
-            if not po_number.startswith('PO-'):
-                po_number = f"PO-{po_number}"
-            return po_number, po_match.group(2)
-    
+    if po_match:
+        po_number = po_match.group(1).strip()
+        # Look for date in format "09/24/24" or "04/07/18" 
+        date_match = re.search(r'DATE\s*[.|I]*\s*[PAGE\s]*\s*(\d{1,2}/\d{1,2}/\d{2,4})', page_text)
+        if date_match:
+            po_date = date_match.group(1)
+            return po_number, po_date
     return None, None
 
 def extract_grand_total(page_text):
     """Extract grand total from the page text."""
     patterns = [
+        r'TOTAL ORDER\s+([\d,]+\.\d{1,2})',
         r'Grand total\s*([\d,]+\.\d{2})',
         r'Grand Total\s*([\d,]+\.\d{2})',
         r'GRAND TOTAL\s*([\d,]+\.\d{2})',
@@ -95,6 +93,13 @@ def is_numeric(text):
 
 def extract_line_items(page):
     """Extract line items with advanced parsing logic."""
+    # Try extract_table first
+    table = page.extract_table()
+    if table and len(table) > 1:
+        line_items = process_table_advanced(table)
+        if line_items:
+            return line_items
+    
     # Use find_tables for better table detection
     tables = page.find_tables()
     for table_obj in tables:
@@ -203,7 +208,7 @@ def process_table_advanced(table):
         row = [clean_cell(cell) for cell in row]
         
         # Skip header rows
-        if not header_found and any('Ln' in str(cell) or 'Part' in str(cell) or 'Description' in str(cell) for cell in row):
+        if not header_found and any('ITEM NO' in str(cell) or 'PART NUMBER' in str(cell) or 'DESCRIPTION' in str(cell) for cell in row):
             header_found = True
             continue
         
@@ -220,12 +225,12 @@ def process_table_advanced(table):
         # Check if this is a single line item row (starts with line number)
         if len(row) > 0 and is_line_number(row[0]):
             ln = row[0]
-            part = row[1] if len(row) > 1 else ''
-            description = clean_description(row[2]) if len(row) > 2 else ''
-            due_date = row[3] if len(row) > 3 else ''
-            qty = row[5] if len(row) > 5 else ''
-            unit_price = row[8] if len(row) > 8 else ''
-            extended_price = row[9] if len(row) > 9 else ''
+            part = row[3] if len(row) > 3 else ''
+            description = clean_description(row[4]) if len(row) > 4 else ''
+            due_date = row[8] if len(row) > 8 else ''
+            qty = row[1] if len(row) > 1 else ''
+            unit_price = row[5] if len(row) > 5 else ''
+            extended_price = row[7] if len(row) > 7 else ''
             amount = '0'  # Default amount as shown in expected output
             
             line_item = {
@@ -243,6 +248,150 @@ def process_table_advanced(table):
     
     return line_items
 
+def extract_line_items_from_text(text):
+    """Extract line items from text for Relli PDFs."""
+    line_items = []
+    lines = text.split('\n')
+    
+    # Look for Relli-style line items
+    for i, line in enumerate(lines):
+        line = line.strip()
+        
+        # Pattern for Relli line items: "1    500 EA 12012168"
+        # Format: [line_num] [qty] [unit] [part_number]
+        item_match = re.match(r'^(\d+)\s+(\d+)\s+EA\s+([A-Z0-9-]+)', line)
+        if item_match:
+            ln = item_match.group(1)
+            qty = item_match.group(2)
+            part = item_match.group(3)
+            
+            # Find description on the next line
+            description = ''
+            if i + 1 < len(lines):
+                desc_line = lines[i + 1].strip()
+                description = clean_description(desc_line)
+            
+            # Look for unit price and extension on subsequent lines
+            unit_price = ''
+            extended_price = ''
+            due_date = ''
+            
+            # Search the next few lines for pricing info
+            for j in range(i + 1, min(i + 10, len(lines))):
+                search_line = lines[j].strip()
+                
+                # Look for price pattern: "19.28 E 9640.00 03/15/25"
+                price_match = re.search(r'(\d+\.\d{2})\s+E\s+(\d+\.\d{2})\s+(\d{1,2}/\d{1,2}/\d{2})', search_line)
+                if price_match:
+                    unit_price = price_match.group(1)
+                    extended_price = price_match.group(2)
+                    due_date = price_match.group(3)
+                    break
+            
+            line_item = {
+                'Ln': ln,
+                'Part': part,
+                'Description': description,
+                'Due_Date': due_date,
+                'Qty_Ordered': qty,
+                'Amount': '0',
+                'Unit_Price': unit_price,
+                'Extended_Price': extended_price
+            }
+            line_items.append(line_item)
+    
+    # If no line items found with the above method, try the single-item format
+    if not line_items:
+        for i, line in enumerate(lines):
+            # Look for "125 EA 11450720-1" pattern (for Modern Format.pdf)
+            item_match = re.search(r'(\d+)\s+EA\s+([A-Z0-9-]+)', line)
+            if item_match:
+                qty = item_match.group(1)
+                part = item_match.group(2)
+                
+                # Find description on the same or next line
+                description = ''
+                desc_match = re.search(r'[A-Z0-9-]+\s+(.+)', line)
+                if desc_match:
+                    description = clean_description(desc_match.group(1))
+                
+                # Look for pricing info
+                unit_price = ''
+                extended_price = ''
+                due_date = ''
+                
+                for j in range(i, min(i + 5, len(lines))):
+                    search_line = lines[j].strip()
+                    # Look for "22.20 E 2775.00 05/25/24" pattern
+                    price_match = re.search(r'(\d+\.\d{2})\s+E\s+(\d+\.\d{2})\s+(\d{1,2}/\d{1,2}/\d{2})', search_line)
+                    if price_match:
+                        unit_price = price_match.group(1)
+                        extended_price = price_match.group(2)
+                        due_date = price_match.group(3)
+                        break
+                
+                line_item = {
+                    'Ln': '1',
+                    'Part': part,
+                    'Description': description,
+                    'Due_Date': due_date,
+                    'Qty_Ordered': qty,
+                    'Amount': '0',
+                    'Unit_Price': unit_price,
+                    'Extended_Price': extended_price
+                }
+                line_items.append(line_item)
+                break  # Only get the first item for single-item PDFs
+        
+        # If still no items found, try the Color.pdf format with parentheses
+        if not line_items:
+            for i, line in enumerate(lines):
+                # Look for "150 (~20521751" pattern (for Color.pdf)
+                item_match = re.search(r'(\d+)\s+\(([~A-Z0-9-]+)', line)
+                if item_match:
+                    qty = item_match.group(1)
+                    part = item_match.group(2)
+                    
+                    # Find description on the same line after part number
+                    description = ''
+                    desc_match = re.search(r'\([~A-Z0-9-]+\s+(.+)', line)
+                    if desc_match:
+                        description = clean_description(desc_match.group(1))
+                    
+                    # Look for pricing info in subsequent lines
+                    unit_price = ''
+                    extended_price = ''
+                    due_date = ''
+                    
+                    for j in range(i + 1, min(i + 10, len(lines))):
+                        search_line = lines[j].strip()
+                        # Look for "93.50 06/23/18" pattern
+                        price_match = re.search(r'(\d+\.\d{2})\s*\)\s*(\d{1,2}/\d{1,2}/\d{2})', search_line)
+                        if price_match:
+                            unit_price = price_match.group(1)
+                            due_date = price_match.group(2)
+                            # Calculate extended price
+                            try:
+                                extended_price = str(float(unit_price) * int(qty))
+                            except:
+                                extended_price = unit_price
+                            break
+                    
+                    line_item = {
+                        'Ln': '1',
+                        'Part': part,
+                        'Description': description,
+                        'Due_Date': due_date,
+                        'Qty_Ordered': qty,
+                        'Amount': '0',
+                        'Unit_Price': unit_price,
+                        'Extended_Price': extended_price
+                    }
+                    line_items.append(line_item)
+                    break  # Only get the first item for single-item PDFs
+    
+    return line_items
+
 def process_pdf(pdf_path):
     """Process a single PDF and return its line items."""
     with pdfplumber.open(pdf_path) as pdf:
@@ -255,6 +404,13 @@ def process_pdf(pdf_path):
         
         # Extract line items
         line_items = extract_line_items(page)
+        if not line_items:
+            line_items = extract_line_items_from_text(text)
+        
+        # Calculate grand_total if not found
+        if line_items and grand_total is None:
+            ext_sum = sum(float(item['Extended_Price'].replace(',', '')) for item in line_items if item['Extended_Price'])
+            grand_total = ext_sum
         
         # Add PO details and grand total to each line item
         for item in line_items:
@@ -262,7 +418,7 @@ def process_pdf(pdf_path):
                 'PO_Number': po_number,
                 'Order_Date': po_date,
                 'Grand_Total': grand_total,
-                'PO': po_number.replace('PO-', '') if po_number else ''
+                'PO': po_number if po_number else ''
             })
         
         return line_items
@@ -281,12 +437,12 @@ def write_to_csv(line_items, output_file, write_header=False):
             writer.writeheader()
         for item in line_items:
             # Clean and standardize data before writing
-            due_date = item.get('Due_Date', '').strip()
-            order_date = item.get('Order_Date', '').strip()
-            qty = item.get('Qty_Ordered', '').strip()
-            unit_price = item.get('Unit_Price', '').strip().replace('$', '').replace(',', '')
-            extended_price = item.get('Extended_Price', '').strip().replace('$', '').replace(',', '')
-            grand_total = str(item.get('Grand_Total', '')).replace('$', '').replace(',', '')
+            due_date = (item.get('Due_Date') or '').strip()
+            order_date = (item.get('Order_Date') or '').strip()
+            qty = (item.get('Qty_Ordered') or '').strip()
+            unit_price = (item.get('Unit_Price') or '').strip().replace('$', '').replace(',', '')
+            extended_price = (item.get('Extended_Price') or '').strip().replace('$', '').replace(',', '')
+            grand_total = str(item.get('Grand_Total') or '').replace('$', '').replace(',', '')
             
             # Format dates to m/d/yy without leading zeros
             def format_date(date_str):
@@ -327,8 +483,8 @@ def write_to_csv(line_items, output_file, write_header=False):
 
 def main():
     # Configuration
-    input_dir = Path('../Allpos')
-    output_csv = 'output.csv'
+    input_dir = Path('.')
+    output_csv = 'purchase_orders.csv'
     
     # Create output CSV with headers
     first_file = True

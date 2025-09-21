@@ -328,7 +328,7 @@ def write_to_csv(line_items, output_file, write_header=False):
 def main():
     # Configuration
     input_dir = Path('../Allpos')
-    output_csv = 'purchase_orders.csv'
+    output_csv = 'output.csv'
     
     # Create output CSV with headers
     first_file = True

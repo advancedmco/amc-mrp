@@ -4,11 +4,10 @@ This tool extracts purchase order data from Shibaura Machine Company PDF files a
 
 ## Overview
 
-The extractor can handle multiple PDF formats from Shibaura Machine Company, including:
-- Format 1: Toshiba Machine Co., America (older format)
-- Format 2: Shibaura Machine Company, America (newer format)
-- Single-item and multi-item purchase orders
-- Various table layouts and column arrangements
+This development environment has instructions for developing extractors effectively
+- Isolate 1 of each unique style of invoice in individual PDFs
+- Manually output and establish a benchmark output that is accurate
+- Start AI on instructions.txt to tune the extractor for the PDFs in folder.
 
 ## Features
 
@@ -55,42 +54,7 @@ python extractor.py
 
 ### 4. Check Results
 
-The extracted data will be saved to `purchase_orders.csv` in the same directory.
-
-## File Structure
-
-```
-Examples/
-├── README.md                           # This file
-├── extractor.py                        # Main extraction script
-├── requirements.txt                    # Python dependencies
-├── python_venv_setup.sh               # Environment setup script
-├── example-po-format1-1item.pdf       # Test file - Format 1, single item
-├── example-po-format1-multi-lines.pdf # Test file - Format 1, multiple items
-├── example-po-format-2-single.pdf     # Test file - Format 2, single item
-├── example-po-format-2-multi-lines.pdf# Test file - Format 2, multiple items
-├── example-output.csv                 # Expected output format reference
-├── authorative_po_list.csv            # Reference PO list
-└── venv/                              # Virtual environment (created by setup)
-```
-
-## Output Format
-
-The extractor produces a CSV file with the following columns:
-
-| Column | Description | Example |
-|--------|-------------|---------|
-| Ln | Line number | 1, 2, 3... |
-| Part | Part number | Y040402 |
-| Description | Part description | Y040402 [LINER BRONZE DC350J] |
-| Due Date | Due date | 6/1/2017 |
-| Qty | Quantity ordered | 4.00 |
-| Amount | Amount (usually 0) | 0 |
-| Unit Price | Price per unit | 1100.00 |
-| Extended Price | Total price for line | 4400.00 |
-| Order Date | PO date | 05/04/2017 |
-| Grand Total | Total PO amount | 4400.0 |
-| PO | PO number (without PO- prefix) | 00022775 |
+The extracted data will be saved to `output.csv` in the same directory.
 
 ## Configuration
 
@@ -102,7 +66,7 @@ input_dir = Path('./your-pdf-directory')
 ```
 
 ### Output File
-By default, output is saved to `purchase_orders.csv`. To change this, modify the `output_csv` variable:
+By default, output is saved to `output.csv`. To change this, modify the `output_csv` variable:
 
 ```python
 output_csv = 'your-output-file.csv'
@@ -130,24 +94,6 @@ python extractor.py
 ```
 
 ## Troubleshooting
-
-### Common Issues
-
-1. **No PDFs found**: Ensure PDF files are in the current directory
-
-2. **Virtual environment issues**: 
-   ```bash
-   # Recreate the virtual environment
-   rm -rf venv
-   ./python_venv_setup.sh
-   ```
-
-3. **Permission errors**: Make sure the setup script is executable:
-   ```bash
-   chmod +x python_venv_setup.sh
-   ```
-
-4. **Extraction errors**: Check the console output for specific error messages. The script will continue processing other files even if some fail.
 
 ### Debug Mode
 

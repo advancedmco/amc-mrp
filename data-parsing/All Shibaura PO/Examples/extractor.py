@@ -6,16 +6,38 @@ from datetime import datetime
 
 def extract_po_details(page_text):
     """Extract PO number and date from the page text."""
-    po_match = re.search(r'P\.O\. Number / Date:\s*([A-Z0-9-]+)\s+(\d{2}/\d{2}/\d{4})', page_text)
-    if po_match:
-        return po_match.group(1), po_match.group(2)
+    # Try different patterns for PO number and date
+    patterns = [
+        r'P\.O\. Number / Date:\s*([A-Z0-9-]+)\s+(\d{2}/\d{2}/\d{4})',
+        r'P\.O\. Number / Date:\s*([A-Z0-9-]+)\s+(\d{1,2}/\d{1,2}/\d{4})',
+        r'PO-(\d+)\s+(\d{2}/\d{2}/\d{4})',
+        r'PO-(\d+)\s+(\d{1,2}/\d{1,2}/\d{4})'
+    ]
+    
+    for pattern in patterns:
+        po_match = re.search(pattern, page_text)
+        if po_match:
+            po_number = po_match.group(1)
+            if not po_number.startswith('PO-'):
+                po_number = f"PO-{po_number}"
+            return po_number, po_match.group(2)
+    
     return None, None
 
 def extract_grand_total(page_text):
     """Extract grand total from the page text."""
-    total_match = re.search(r'Grand total\s*([\d,]+\.\d{2})', page_text)
-    if total_match:
-        return float(total_match.group(1).replace(',', ''))
+    patterns = [
+        r'Grand total\s*([\d,]+\.\d{2})',
+        r'Grand Total\s*([\d,]+\.\d{2})',
+        r'GRAND TOTAL\s*([\d,]+\.\d{2})',
+        r'Total\s*([\d,]+\.\d{2})'
+    ]
+    
+    for pattern in patterns:
+        total_match = re.search(pattern, page_text)
+        if total_match:
+            return float(total_match.group(1).replace(',', ''))
+    
     return None
 
 def is_line_number(text):
@@ -23,7 +45,7 @@ def is_line_number(text):
     if not text:
         return False
     cleaned = text.strip()
-    return cleaned.isdigit() or cleaned.replace('.', '').isdigit()
+    return cleaned.isdigit() and int(cleaned) <= 50  # Reasonable line number limit
 
 def clean_cell(cell):
     """Clean cell content."""
@@ -31,72 +53,140 @@ def clean_cell(cell):
         return ''
     return str(cell).strip()
 
-def extract_line_items(page):
-    """Extract line items from the page, handling multi-line descriptions."""
-    # Extract table with specific settings
-    table = page.extract_table({
-        'vertical_strategy': 'text',
-        'horizontal_strategy': 'text',
-        'snap_tolerance': 3,
-        'join_tolerance': 3,
-    })
+def clean_description(desc):
+    """Clean description field by removing extra metadata."""
+    if not desc:
+        return ''
     
+    # Remove common contamination patterns
+    desc = re.sub(r'\*QUOTE:.*', '', desc)
+    desc = re.sub(r'\*DELIVERY:.*', '', desc)
+    desc = re.sub(r'upervisor.*', '', desc)
+    desc = re.sub(r'https?://.*', '', desc)
+    desc = re.sub(r'\d{1,2}/\d{1,2}/\d{4}.*', '', desc)
+    desc = re.sub(r'\d{1,2}:\d{2}\s*(AM|PM).*', '', desc)
+    
+    # Clean up whitespace and newlines
+    desc = ' '.join(desc.split())
+    return desc.strip()
+
+def is_valid_date(text):
+    """Check if text looks like a date."""
+    if not text:
+        return False
+    # Match various date formats
+    date_patterns = [
+        r'\d{1,2}/\d{1,2}/\d{4}',
+        r'\d{1,2}/\d{1,2}/\d{2}',
+        r'\d{4}-\d{1,2}-\d{1,2}'
+    ]
+    return any(re.match(pattern, text.strip()) for pattern in date_patterns)
+
+def is_numeric(text):
+    """Check if text is numeric (for qty, prices)."""
+    if not text:
+        return False
+    try:
+        float(text.replace(',', '').replace('$', ''))
+        return True
+    except:
+        return False
+
+def extract_line_items(page):
+    """Extract line items with advanced parsing logic."""
+    # Try different table extraction strategies
+    strategies = [
+        {'vertical_strategy': 'text', 'horizontal_strategy': 'text', 'snap_tolerance': 3},
+        {'vertical_strategy': 'lines', 'horizontal_strategy': 'lines'},
+        {'vertical_strategy': 'text', 'horizontal_strategy': 'lines', 'snap_tolerance': 5},
+    ]
+    
+    for strategy in strategies:
+        table = page.extract_table(strategy)
+        if table and len(table) > 1:
+            line_items = process_table_advanced(table)
+            if line_items:
+                return line_items
+    
+    return []
+
+def process_table_advanced(table):
+    """Process extracted table with advanced logic."""
     if not table:
         return []
     
     line_items = []
-    current_item = None
-    description_buffer = []
+    header_found = False
     
-    # Find header row to determine column indices
-    header_row_index = None
-    for i, row in enumerate(table):
-        if row and any('Ln' in str(cell) for cell in row):
-            header_row_index = i
-            break
-    
-    if header_row_index is None:
-        return []
-    
-    # Process rows after header
-    for row in table[header_row_index + 1:]:
-        if not row or not any(row):  # Skip empty rows
+    for row_idx, row in enumerate(table):
+        if not row or not any(row):
             continue
             
-        # Clean row data
         row = [clean_cell(cell) for cell in row]
         
-        # Check if this is a start of a new line item
-        if is_line_number(row[0]):
-            # Save previous item if exists
-            if current_item:
-                current_item['Description'] = '\n'.join(description_buffer)
-                line_items.append(current_item)
-            
-            # Start new item
-            description_text = row[2] if len(row) > 2 else ''
-            description_buffer = [description_text] if description_text else []
-            
-            try:
-                current_item = {
-                    'Ln': row[0],
-                    'Item_Number': row[1] if len(row) > 1 else '',
-                    'Due_Date': row[3] if len(row) > 3 else '',
-                    'Qty_Ordered': row[5] if len(row) > 5 else '',
-                    'Unit_Price': row[8] if len(row) > 8 else '',
-                    'Extended_Price': row[9] if len(row) > 9 else ''
-                }
-            except Exception:
-                continue
+        # Skip header rows
+        if not header_found and any('Ln' in str(cell) or 'Part' in str(cell) or 'Description' in str(cell) for cell in row):
+            header_found = True
+            continue
         
-        # If this is a continuation row (part of multi-line description)
-        elif current_item and row[2]:
-            description_buffer.append(row[2])
-    
-    # Don't forget to add the last item
-    if current_item:
-        current_item['Description'] = '\n'.join(description_buffer)
-        line_items.append(current_item)
+        if not header_found:
+            continue
+            
+        # Check if this is a line item row (starts with line number)
+        if len(row) > 0 and is_line_number(row[0]):
+            # Extract data based on expected positions and validation
+            ln = row[0]
+            part = row[1] if len(row) > 1 else ''
+            
+            # Find description - usually in position 2, but validate
+            description = ''
+            due_date = ''
+            qty = ''
+            amount = '0'  # Default amount as shown in expected output
+            unit_price = ''
+            extended_price = ''
+            
+            # Look for description in positions 2-4
+            for i in range(2, min(len(row), 5)):
+                if row[i] and not is_valid_date(row[i]) and not is_numeric(row[i]):
+                    description = clean_description(row[i])
+                    break
+            
+            # Look for due date
+            for i in range(2, len(row)):
+                if is_valid_date(row[i]):
+                    due_date = row[i]
+                    break
+            
+            # Look for numeric values (qty, unit price, extended price)
+            numeric_values = []
+            for i in range(2, len(row)):
+                if is_numeric(row[i]) and row[i].strip():
+                    numeric_values.append(row[i].strip())
+            
+            # Assign numeric values based on position and value
+            if len(numeric_values) >= 3:
+                qty = numeric_values[0]
+                unit_price = numeric_values[1]
+                extended_price = numeric_values[2]
+            elif len(numeric_values) == 2:
+                unit_price = numeric_values[0]
+                extended_price = numeric_values[1]
+            elif len(numeric_values) == 1:
+                extended_price = numeric_values[0]
+            
+            line_item = {
+                'Ln': ln,
+                'Part': part,
+                'Description': description,
+                'Due_Date': due_date,
+                'Qty_Ordered': qty,
+                'Amount': amount,
+                'Unit_Price': unit_price,
+                'Extended_Price': extended_price
+            }
+            
+            line_items.append(line_item)
     
     return line_items
 
@@ -117,17 +207,18 @@ def process_pdf(pdf_path):
         for item in line_items:
             item.update({
                 'PO_Number': po_number,
-                'PO_Date': po_date,
-                'Grand_Total': grand_total
+                'Order_Date': po_date,
+                'Grand_Total': grand_total,
+                'PO': po_number.replace('PO-', '') if po_number else ''
             })
         
         return line_items
 
 def write_to_csv(line_items, output_file, write_header=False):
-    """Write line items to CSV file."""
+    """Write line items to CSV file matching expected format."""
     field_names = [
-        'PO_Number', 'PO_Date', 'Ln', 'Item_Number', 'Description', 
-        'Due_Date', 'Qty_Ordered', 'Unit_Price', 'Extended_Price', 'Grand_Total'
+        'Ln', 'Part', 'Description', 'Due Date', 'Qty', 'Amount', 
+        'Unit Price', 'Extended Price', 'Order Date', 'Grand Total', 'PO'
     ]
     
     mode = 'w' if write_header else 'a'
@@ -138,16 +229,17 @@ def write_to_csv(line_items, output_file, write_header=False):
         for item in line_items:
             # Clean and standardize data before writing
             clean_item = {
-                'PO_Number': item.get('PO_Number', ''),
-                'PO_Date': item.get('PO_Date', ''),
                 'Ln': item.get('Ln', '').strip(),
-                'Item_Number': item.get('Item_Number', '').strip(),
-                'Description': item.get('Description', '').replace('\r', '\n'),
-                'Due_Date': item.get('Due_Date', '').strip(),
-                'Qty_Ordered': item.get('Qty_Ordered', '').strip(),
-                'Unit_Price': item.get('Unit_Price', '').strip().replace('$', '').replace(',', ''),
-                'Extended_Price': item.get('Extended_Price', '').strip().replace('$', '').replace(',', ''),
-                'Grand_Total': str(item.get('Grand_Total', '')).replace('$', '').replace(',', '')
+                'Part': item.get('Part', '').strip(),
+                'Description': item.get('Description', '').strip(),
+                'Due Date': item.get('Due_Date', '').strip(),
+                'Qty': item.get('Qty_Ordered', '').strip(),
+                'Amount': item.get('Amount', '').strip(),
+                'Unit Price': item.get('Unit_Price', '').strip().replace('$', '').replace(',', ''),
+                'Extended Price': item.get('Extended_Price', '').strip().replace('$', '').replace(',', ''),
+                'Order Date': item.get('Order_Date', '').strip(),
+                'Grand Total': str(item.get('Grand_Total', '')).replace('$', '').replace(',', ''),
+                'PO': item.get('PO', '').strip()
             }
             writer.writerow(clean_item)
 

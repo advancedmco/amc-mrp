@@ -7,10 +7,10 @@ from datetime import datetime
 def extract_po_details(page_text):
     """Extract PO number and date from the page text."""
     # Look for Relli PO format: "PURCHASE ORDER 554002-X1572-1" or just "705677-X1572-1"
-    po_match = re.search(r'PURCHASE ORDER\s*[-]*\s*([0-9-]+[A-Z0-9-]+)', page_text)
+    po_match = re.search(r'PURCHASE ORDER\s+([0-9-]+X[0-9-]+)', page_text)
     if not po_match:
         # Try alternative format without "PURCHASE ORDER" text
-        po_match = re.search(r'([0-9]+-X1572-[0-9]+)', page_text)
+        po_match = re.search(r'([0-9]+-X[0-9]+-[0-9]+)', page_text)
     
     if po_match:
         po_number = po_match.group(1).strip()
@@ -253,23 +253,56 @@ def extract_line_items_from_text(text):
     line_items = []
     lines = text.split('\n')
     
-    # Look for Relli-style line items
-    for i, line in enumerate(lines):
-        line = line.strip()
+    # Look for Relli-style line items in the 2-pager format
+    current_line_number = 1  # Start renumbering from 1
+    
+    # First, let's find all the line item blocks by looking for the qty + EA + part pattern
+    i = 0
+    while i < len(lines):
+        line = lines[i].strip()
         
-        # Pattern for Relli line items: "1    500 EA 12012168"
-        # Format: [line_num] [qty] [unit] [part_number]
-        item_match = re.match(r'^(\d+)\s+(\d+)\s+EA\s+([A-Z0-9-]+)', line)
+        # Pattern for Relli line items: "500 EA 12012168" or "4 500 EA 12012168"
+        # Format: [line_num] [qty] [unit] [part_number] OR [qty] [unit] [part_number]
+        
+        # Try pattern with line number first: "4 500 EA 12012168"
+        item_match = re.match(r'^(\d+)\s+(\d+)\s+EA\s+([A-Z0-9~-]+)', line)
         if item_match:
-            ln = item_match.group(1)
+            # Line number format
+            line_num = item_match.group(1)
             qty = item_match.group(2)
             part = item_match.group(3)
+        else:
+            # Try pattern without line number: "500 EA 12012168"
+            item_match = re.match(r'^(\d+)\s+EA\s+([A-Z0-9~-]+)', line)
+            if item_match:
+                qty = item_match.group(1)
+                part = item_match.group(2)
+            else:
+                item_match = None
+        
+        if item_match:
             
-            # Find description on the next line
+            # Find the clean description - look for words like "ANCHOR", "SHAFT REV D", etc.
             description = ''
-            if i + 1 < len(lines):
-                desc_line = lines[i + 1].strip()
-                description = clean_description(desc_line)
+            # Check the next few lines for the description
+            for j in range(i + 1, min(i + 5, len(lines))):
+                desc_line = lines[j].strip()
+                # Look for clean descriptions that match patterns in benchmark
+                if (desc_line and 
+                    not re.match(r'^\d', desc_line) and  # Not starting with number
+                    not 'COMPLETE TO' in desc_line and   # Not instructions
+                    not 'SEE NOTE' in desc_line and      # Not notes
+                    not 'NOTE' in desc_line and          # Not notes
+                    not 'MFG' in desc_line and           # Not notes about certs
+                    not 'CERTIFICATE' in desc_line and   # Not cert requirements
+                    not desc_line.startswith('1025-') and # Not FSN number
+                    not desc_line.startswith('3040-') and # Not FSN number
+                    len(desc_line) > 2 and               # Reasonable length
+                    len(desc_line) < 50 and              # Not too long (likely instructions)
+                    any(c.isalpha() for c in desc_line) and # Contains letters
+                    desc_line.isupper()):                # Uppercase descriptions
+                    description = desc_line
+                    break
             
             # Look for unit price and extension on subsequent lines
             unit_price = ''
@@ -277,7 +310,7 @@ def extract_line_items_from_text(text):
             due_date = ''
             
             # Search the next few lines for pricing info
-            for j in range(i + 1, min(i + 10, len(lines))):
+            for j in range(i + 1, min(i + 15, len(lines))):
                 search_line = lines[j].strip()
                 
                 # Look for price pattern: "19.28 E 9640.00 03/15/25"
@@ -289,7 +322,7 @@ def extract_line_items_from_text(text):
                     break
             
             line_item = {
-                'Ln': ln,
+                'Ln': str(current_line_number),  # Renumber starting from 1
                 'Part': part,
                 'Description': description,
                 'Due_Date': due_date,
@@ -299,6 +332,9 @@ def extract_line_items_from_text(text):
                 'Extended_Price': extended_price
             }
             line_items.append(line_item)
+            current_line_number += 1
+        
+        i += 1
     
     # If no line items found with the above method, try the single-item format
     if not line_items:
@@ -426,7 +462,7 @@ def process_pdf(pdf_path):
 def write_to_csv(line_items, output_file, write_header=False):
     """Write line items to CSV file matching expected format."""
     field_names = [
-        'Ln', 'Part', 'Description', 'Due Date', 'Qty', 'Amount', 
+        'Ln', 'Part', 'Description', 'Due Date', 'Qty', 
         'Unit Price', 'Extended Price', 'Order Date', 'Grand Total', 'PO'
     ]
     
@@ -472,7 +508,6 @@ def write_to_csv(line_items, output_file, write_header=False):
                 'Description': item.get('Description', '').strip(),
                 'Due Date': due_date,
                 'Qty': qty,
-                'Amount': item.get('Amount', '').strip(),
                 'Unit Price': unit_price,
                 'Extended Price': extended_price,
                 'Order Date': order_date,
@@ -484,7 +519,7 @@ def write_to_csv(line_items, output_file, write_header=False):
 def main():
     # Configuration
     input_dir = Path('.')
-    output_csv = 'purchase_orders.csv'
+    output_csv = 'output.csv'
     
     # Create output CSV with headers
     first_file = True

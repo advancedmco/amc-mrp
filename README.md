@@ -29,12 +29,12 @@ docker compose down
 
 ### Services
 
-**MySQL Database (`mysql`)**
+**MariaDB Database (`mysql`)**
 - Port: 3307 (host) → 3306 (container)
 - Database: amcmrp
 - Credentials: amc / Workbench.lavender.chrome
 - Features: Fresh database on each startup, auto-loads DDL.sql and testdata.sql
-- Build: Custom Dockerfile in database/
+- Build: Custom Dockerfile in database/ (mariadb:11)
 
 **Web Dashboard with Document Generator (`frontend`)**
 - Container: mrp-frontend
@@ -213,14 +213,14 @@ Backend daemon service with OAuth token management and data synchronization.
 
 ### Database Connection Issues
 ```bash
-# Check MySQL health
+# Check MariaDB health
 docker compose ps
 
-# View MySQL logs
+# View MariaDB logs
 docker compose logs mysql
 
-# Test connection from gen-app
-docker compose exec gen-app python -c "import mysql.connector; print('OK')"
+# Test connection from frontend
+docker compose exec frontend python -c "import mysql.connector; print('OK')"
 ```
 
 ### PDF Generation Issues
@@ -251,7 +251,7 @@ docker system df
 ```
 
 ### Port Conflicts
-Default ports: 3307 (MySQL), 5001 (Web), 5002 (Backend)
+Default ports: 3307 (MariaDB), 5001 (Web), 5002 (Backend)
 Modify in docker-compose.yml if conflicts occur.
 
 ## Security Notes

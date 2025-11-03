@@ -1,5 +1,5 @@
-# MySQL Database for AMC MRP
-FROM mysql:8.0
+# MariaDB Database for AMC MRP
+FROM mariadb:11
 
 # Set environment variables
 ENV MYSQL_ROOT_PASSWORD=toor

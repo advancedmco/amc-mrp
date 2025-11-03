@@ -61,12 +61,12 @@
 - Custom Dockerfile with pandoc, LaTeX, LibreOffice
 - Contains templates and static assets
 
-**database/** - MySQL Database
+**database/** - MariaDB Database
 - Schema: DDL.sql
 - Test data: test_data/testdata.sql
 - Fresh database on each Docker startup (tmpfs)
 - No persistent volumes in development
-- Custom Dockerfile extending mysql:8.0
+- Custom Dockerfile extending mariadb:11
 
 ### Docker Services
 
@@ -251,7 +251,7 @@ docker compose build --no-cache [service-name]
 ## Error Handling
 
 ### Database Connection Failures
-- Check MySQL health: `docker compose ps`
+- Check MariaDB health: `docker compose ps`
 - Verify credentials in .env match docker-compose.yml
 - Check network connectivity: `docker network ls`
 - Review logs: `docker compose logs mysql`

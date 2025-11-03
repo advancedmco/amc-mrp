@@ -9,17 +9,19 @@
 
 ### Docker Environment
 - **ALWAYS** ensure Docker Compose is running before development
-- Use existing Docker environments for testing and running programs
-- **AVOID** rebuilding containers when possible - use runtime package installation for testing
-- When dependencies change, update requirements.txt files in the appropriate component directory
+- Each service has its own Dockerfile for consistent builds
+- **REBUILD** containers when dependencies or Dockerfiles change: `docker compose build`
+- For code changes only, no rebuild needed (hot-reloading enabled)
+- When dependencies change, update requirements.txt in the component directory and rebuild
 
 ### File Management
 - **ALWAYS** edit existing files rather than creating new ones
 - Clean up temporary artifacts, test scripts, and debugging files when done
 - Assign files to correct folders based on their purpose:
   - `backend/` - QuickBooks integration daemon
-  - `frontend/` - Web dashboard (Flask app)
-  - `filegen/` - Document generators (COC, PO)
+  - `frontend/` - Web dashboard (Flask app) with integrated document generators
+  - `frontend/generators/` - Document generation code (COC, PO)
+  - `frontend/templates/documents/` - Document templates
   - `database/` - SQL schema and test data
   - `DevAssets/` - Examples and development documentation
 
@@ -48,24 +50,23 @@
 - Caches vendors, customers, products every hour
 - Provides fuzzy search API for web dashboard
 - Runs as persistent daemon on port 5002
+- Custom Dockerfile with Python dependencies
 
-**frontend/** - Web Dashboard (Flask)
+**frontend/** - Web Dashboard and Document Generator (Flask)
 - User interface for work orders and document generation
 - Integrates with backend for QuickBooks data
+- Includes document generators (COC, PO) in generators/ folder
+- Templates stored in templates/documents/
 - Serves on port 5001
+- Custom Dockerfile with pandoc, LaTeX, LibreOffice
 - Contains templates and static assets
-
-**filegen/** - Document Generation Services
-- COC (Certificate of Completion) generator
-- PO (Purchase Order) generator
-- Uses pandoc, LaTeX, LibreOffice for PDF generation
-- Templates stored in filegen/file_templates/
 
 **database/** - MySQL Database
 - Schema: DDL.sql
 - Test data: test_data/testdata.sql
 - Fresh database on each Docker startup (tmpfs)
 - No persistent volumes in development
+- Custom Dockerfile extending mysql:8.0
 
 ### Docker Services
 
@@ -73,23 +74,21 @@
 - Port: 3307 → 3306
 - Credentials: amc / Workbench.lavender.chrome
 - Database: amcmrp
-
-**generator** (mrp-generator)
-- Document generation service
-- Dependencies: pandoc, LaTeX, LibreOffice, python-docx
-- Working directory: /app
-- Source: /app/src (mounted from ./mrp-filegen/src)
+- Build: ./database/Dockerfile
 
 **frontend** (mrp-frontend)
-- Flask web dashboard
-- Port: 5001
-- Source: /app/web (mounted from ./mrp-webapp)
-- Integrates with gen-app for document generation
+- Flask web dashboard with integrated document generation
+- Port: 5001 → 5000
+- Source: /app (mounted from ./frontend)
+- Includes: COC/PO generators, templates, web interface
+- Dependencies: pandoc, LaTeX, LibreOffice, python-docx
+- Build: ./frontend/Dockerfile
 
 **backend** (mrp-backend)
 - QuickBooks integration daemon
 - Port: 5002
-- Source: /app (mounted from ./mrp-backend)
+- Source: /app (mounted from ./backend)
+- Build: ./backend/Dockerfile
 
 ## Development Workflow
 
@@ -98,7 +97,10 @@
 # Check Docker is running
 docker compose ps
 
-# Start services if not running
+# Build images (first time or after Dockerfile/requirements changes)
+docker compose build
+
+# Start services
 docker compose up -d
 
 # Verify all services healthy
@@ -107,33 +109,43 @@ docker compose ps
 
 ### Testing Code Changes
 
-**For Python Code (backend, frontend, filegen):**
+**For Python Code (backend, frontend):**
 - Code changes are live (mounted volumes)
-- No container rebuild needed
+- No container rebuild needed for code changes only
 - For new dependencies:
   ```bash
-  # Add to appropriate requirements.txt
-  # Then install in running container
-  docker compose exec [service-name] pip install package-name
+  # 1. Add to appropriate requirements.txt (backend/ or frontend/)
+  # 2. Rebuild the service
+  docker compose build [service-name]
+  # 3. Restart the service
+  docker compose up -d [service-name]
   ```
 
 **For Database Changes:**
 - Edit DDL.sql or testdata.sql
-- Restart to get fresh database:
+- Rebuild and restart:
   ```bash
+  docker compose build mysql
   docker compose down && docker compose up -d
+  ```
+
+**For Dockerfile Changes:**
+- Always rebuild after modifying any Dockerfile:
+  ```bash
+  docker compose build [service-name]
+  docker compose up -d [service-name]
   ```
 
 ### Running Tests
 ```bash
 # COC generation test
-docker compose exec gen-app python src/test_coc.py
+docker compose exec frontend python generators/test_coc.py
 
 # PO generation test
-docker compose exec gen-app python src/test_po.py
+docker compose exec frontend python generators/test_po.py
 
 # QuickBooks integration test
-docker compose exec mrp-backend python test_qb_integration.py
+docker compose exec backend python test_qb_integration.py
 ```
 
 ### Debugging
@@ -148,7 +160,10 @@ docker compose exec [service-name] bash
 docker compose exec [service-name] pip list
 
 # Test database connection
-docker compose exec gen-app python -c "import mysql.connector; print('OK')"
+docker compose exec frontend python -c "import mysql.connector; print('OK')"
+
+# Rebuild from scratch (no cache)
+docker compose build --no-cache [service-name]
 ```
 
 ## Business Logic
@@ -186,17 +201,18 @@ docker compose exec gen-app python -c "import mysql.connector; print('OK')"
 5. Document in component-specific instructions if needed
 
 ### Adding a New Python Dependency
-1. Add to appropriate requirements.txt (backend/, frontend/, or filegen/)
-2. Test installation:
+1. Add to appropriate requirements.txt (backend/ or frontend/)
+2. Rebuild the service:
    ```bash
-   docker compose exec [service] pip install package-name
+   docker compose build [service-name]
+   docker compose up -d [service-name]
    ```
 3. Verify functionality
 4. Document if it affects setup or configuration
 
 ### Adding a New Document Template
-1. Place template in filegen/file_templates/
-2. Update generator script (cocGenerate.py or poGenerate.py)
+1. Place template in frontend/templates/documents/
+2. Update generator script in frontend/generators/ (cocGenerate.py or poGenerate.py)
 3. Add environment variable if path needs configuration
 4. Test generation with test scripts
 5. Update database logging if needed
@@ -241,10 +257,10 @@ docker compose exec gen-app python -c "import mysql.connector; print('OK')"
 - Review logs: `docker compose logs mysql`
 
 ### Document Generation Failures
-- Verify pandoc installed: `docker compose exec gen-app pandoc --version`
-- Check LaTeX: `docker compose exec gen-app xelatex --version`
-- Verify LibreOffice: `docker compose exec gen-app libreoffice --version`
-- Check template file exists and is readable
+- Verify pandoc installed: `docker compose exec frontend pandoc --version`
+- Check LaTeX: `docker compose exec frontend xelatex --version`
+- Verify LibreOffice: `docker compose exec frontend libreoffice --version`
+- Check template file exists in frontend/templates/documents/
 - Review generator logs for specific errors
 
 ### QuickBooks API Failures
@@ -261,7 +277,7 @@ docker compose exec gen-app python -c "import mysql.connector; print('OK')"
 - For IDE autocomplete and type checking
 
 ### Setup
-Each component (backend/, frontend/, filegen/) should have setup instructions in their respective README.md or instructions.txt.
+Each component (backend/, frontend/) should have setup instructions in their respective README.md or instructions.txt.
 
 General pattern:
 ```bash
@@ -307,6 +323,12 @@ rm -f /tmp/test_*.py /tmp/debug_*.log
 
 ### Essential Commands
 ```bash
+# Build all services
+docker compose build
+
+# Build specific service
+docker compose build [service-name]
+
 # Start everything
 docker compose up -d
 
@@ -331,16 +353,18 @@ mysql -h localhost -P 3307 -u amc -p amcmrp
 
 ### Service Names
 - `mysql` - Database
-- `gen-app` - Document generator
-- `web-app` - Web dashboard
-- `mrp-backend` - QuickBooks integration
+- `frontend` - Web dashboard and document generator
+- `backend` - QuickBooks integration
 
 ### Important Files
 - `docker-compose.yml` - Service orchestration
 - `.env` - Environment variables (never commit)
 - `example.env` - Environment template
 - `README.md` - Main documentation
+- `CLAUDE.md` - This file (development instructions)
 - `general_instructions.txt` - General development rules
+- `[component]/Dockerfile` - Service build configuration
+- `[component]/.dockerignore` - Build optimization
 - `[component]/instructions.txt` - Component-specific rules
 
 ---

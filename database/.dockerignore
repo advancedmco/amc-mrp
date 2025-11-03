@@ -1,0 +1,13 @@
+# Git
+.git
+.gitignore
+
+# Documentation
+README.md
+instructions.txt
+*.md
+
+# Development files
+.vscode
+.idea
+*.log

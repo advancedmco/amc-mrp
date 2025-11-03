@@ -5,6 +5,9 @@ Manufacturing Resource Planning system for Advanced Machine Co. with QuickBooks 
 ## Quick Start
 
 ```bash
+# Build all services (first time or after Dockerfile changes)
+docker compose build
+
 # Start all services
 docker compose up -d
 
@@ -12,8 +15,11 @@ docker compose up -d
 open http://localhost:5001
 
 # View logs
-docker compose logs -f web-app
-docker compose logs -f gen-app
+docker compose logs -f frontend
+docker compose logs -f backend
+
+# Rebuild and restart (for testing changes)
+docker compose down && docker compose build && docker compose up -d
 
 # Stop services
 docker compose down
@@ -28,36 +34,60 @@ docker compose down
 - Database: amcmrp
 - Credentials: amc / Workbench.lavender.chrome
 - Features: Fresh database on each startup, auto-loads DDL.sql and testdata.sql
+- Build: Custom Dockerfile in database/
 
-**Document Generator (`generator`)**
-- Container: mrp-generator
-- Purpose: Backend document generation (COCs and POs)
-- Components: cocGenerate.py, poGenerate.py
-- Dependencies: pandoc, LaTeX, LibreOffice, python-docx
-
-**Web Dashboard (`frontend`)**
+**Web Dashboard with Document Generator (`frontend`)**
 - Container: mrp-frontend
-- Port: 5001
+- Port: 5001 (5000 internal)
 - URL: http://localhost:5001
 - Purpose: User interface for work orders and document generation
-- Components: Flask application with dashboard and templates
+- Components: Flask application, COC/PO generators, templates
+- Dependencies: pandoc, LaTeX, LibreOffice, python-docx
+- Build: Custom Dockerfile in frontend/
+- Hot-reloading: Source code mounted for development
 
-**MRP Backend (`mrp-backend`)**
+**QuickBooks Integration Backend (`backend`)**
 - Container: mrp-backend
 - Port: 5002
-- Purpose: QuickBooks integration daemon (token management, data sync)
-- Features: Hourly cache updates, fuzzy search indexing
+- Purpose: QuickBooks OAuth and data synchronization daemon
+- Features: Token management, hourly cache updates, fuzzy search API
+- Build: Custom Dockerfile in backend/
+- Hot-reloading: Source code mounted for development
 
 ## Project Structure
 
 ```
 amc-mrp/
-├── backend/          # QuickBooks integration daemon
-├── frontend/         # Web dashboard (Flask)
-├── filegen/          # Document generators (COC, PO)
-├── database/         # SQL schema and test data
-├── DevAssets/        # Examples and development docs
-└── docker-compose.yml
+├── backend/                      # QuickBooks integration daemon
+│   ├── Dockerfile                # Backend build configuration
+│   ├── .dockerignore             # Build optimization
+│   ├── requirements.txt          # Python dependencies
+│   └── app.py                    # Backend service
+├── frontend/                     # Web dashboard and document generator
+│   ├── Dockerfile                # Frontend build configuration
+│   ├── .dockerignore             # Build optimization
+│   ├── requirements.txt          # Python dependencies
+│   ├── generators/               # Document generation code
+│   │   ├── cocGenerate.py        # Certificate of Completion
+│   │   ├── poGenerate.py         # Purchase Order
+│   │   ├── test_coc.py           # COC testing
+│   │   └── test_po.py            # PO testing
+│   ├── templates/
+│   │   └── documents/            # DOCX templates
+│   ├── app.py                    # Flask application
+│   └── run.py                    # Application entry point
+├── database/                     # Database configuration
+│   ├── Dockerfile                # Database build configuration
+│   ├── .dockerignore             # Build optimization
+│   ├── DDL.sql                   # Database schema
+│   └── test_data/
+│       └── testdata.sql          # Sample data
+├── DevAssets/                    # Examples and development docs
+├── docker-compose.yml            # Service orchestration
+├── .env                          # Environment variables (not in git)
+├── example.env                   # Environment template
+├── CLAUDE.md                     # Development instructions
+└── README.md                     # This file
 ```
 
 ## Business Workflow
@@ -100,29 +130,26 @@ PRODUCTION_URI=https://mrp.inge.st
 mysql -h localhost -P 3307 -u amc -p amcmrp
 # Password: Workbench.lavender.chrome
 
-# From gen-app container
-docker compose exec gen-app mysql -h mysql -u amc -p amcmrp
-
 # From MySQL container
 docker compose exec mysql mysql -u amc -p amcmrp
 ```
 
-### Document Generation
+### Document Generation Testing
 ```bash
-# Access generator container
-docker compose exec gen-app bash
+# Access frontend container
+docker compose exec frontend bash
 
 # Run COC test
-docker compose exec gen-app python src/test_coc.py
+docker compose exec frontend python generators/test_coc.py
 
 # Run PO test
-docker compose exec gen-app python src/test_po.py
+docker compose exec frontend python generators/test_po.py
 ```
 
 ### Development Workflow
 ```bash
 # Restart specific service
-docker compose restart web-app
+docker compose restart frontend
 
 # View service status
 docker compose ps
@@ -130,16 +157,27 @@ docker compose ps
 # Reset environment (fresh database)
 docker compose down && docker compose up -d
 
-# Check dependency installation
-docker compose exec gen-app pip list
+# Rebuild after dependency changes
+docker compose build [service-name]
+
+# Check installed packages
+docker compose exec frontend pip list
+docker compose exec backend pip list
 ```
 
 ## Development Features
 
+**Custom Docker Builds**
+- Each service has its own Dockerfile
+- Optimized with .dockerignore files
+- Easy to rebuild: `docker compose build`
+- Dependencies baked into images for consistency
+
 **Live Code Reloading**
-- Changes to files are immediately available in containers
+- Source code mounted as volumes for hot-reloading
 - No rebuild needed for code changes
-- Mounted volumes: backend/, frontend/, filegen/
+- Only rebuild when dependencies or Dockerfiles change
+- Mounted volumes: backend/, frontend/
 
 **Fresh Database**
 - Database recreated on each startup (tmpfs storage)
@@ -147,11 +185,12 @@ docker compose exec gen-app pip list
 - Test data loaded from testdata.sql
 - Perfect for development and testing
 
-**PDF Generation**
+**Integrated Document Generation**
+- Document generators now integrated into frontend service
 - Full pandoc and LaTeX support
 - LibreOffice for DOCX to PDF conversion
-- Generated files saved to respective CACHE directories
-- Accessible from both container and host
+- Generated files saved to frontend/CACHE/
+- Templates in frontend/templates/documents/
 
 ## QuickBooks Integration
 
@@ -201,8 +240,11 @@ docker compose exec gen-app libreoffice --version
 # Check all service logs
 docker compose logs
 
-# Rebuild specific service
-docker compose build --no-cache web-app
+# Rebuild specific service from scratch
+docker compose build --no-cache [service-name]
+
+# Rebuild all services from scratch
+docker compose build --no-cache
 
 # Check Docker resources
 docker system df

@@ -1,0 +1,39 @@
+# Git
+.git
+.gitignore
+
+# Python
+__pycache__
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info
+dist
+build
+venv
+env
+
+# IDE
+.vscode
+.idea
+*.swp
+*.swo
+
+# Environment
+.env
+.env.local
+
+# Documentation
+README.md
+instructions.txt
+*.md
+
+# Testing
+test_*.py
+*_test.py
+tests/
+
+# Development
+*.log
+.DS_Store

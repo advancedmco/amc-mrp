@@ -1,11 +1,11 @@
 Overview for this project.
 
 This project has subcomponents under the main folder amc-mrp.
-- mrp-db: is the database component of the mrp
-- mrp-filegen: hangles document generating and outputs.
-- mrp-webapp: is the front end component.
-- mrp-backend: is a daemon that runs forever and maintains connection to QBO, handles DB connections, and serves data in optimal fassion to front end.
-- DevAssets: contains development assistant assets such as example files and instructions.
+- /database: is the database component of the mrp
+- /filegen: hangles document generating and outputs.
+- /frontent: is the front end component.
+- /backend: is a daemon that runs forever and maintains connection to QBO, handles DB connections, and serves data in optimal fassion to front end.
+- /DevAssets: contains development assistant assets such as example files and instructions.
 - Root files apply to the whole project such as the docker compose file, env and main readme.
 - Always be aware of the scope in which your working and assign files to the correct folders and subfolders to which they belong.
 - Update main readme and compose with any relevant changes such as new setup files, env variables, etc.

@@ -2,7 +2,7 @@ services:
   # MySQL Database Service
   mysql:
     image: mysql:8.0
-    container_name: amc-mrp-db
+    container_name: mrp-db
     environment:
       MYSQL_ROOT_PASSWORD: toor
       # Database will be created by DDL.sql script
@@ -13,10 +13,10 @@ services:
       - "3307:3306"
     volumes:
       # Mount SQL initialization scripts
-      - ./mrp-db/DDL.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
-      - ./mrp-db/test_data/testdata.sql:/docker-entrypoint-initdb.d/02-data.sql:ro
+      - ./database/DDL.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+      - ./database/test_data/testdata.sql:/docker-entrypoint-initdb.d/02-data.sql:ro
     networks:
-      - amc-mrp-network
+      - mrp-network
     healthcheck:
       test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-ptoor"]
       timeout: 20s
@@ -28,9 +28,9 @@ services:
       - /var/lib/mysql
 
   # Python Application Service
-  gen-app:
+  generator:
     image: python:3.11-slim
-    container_name: amc-mrp-generator
+    container_name: mrp-generator
     depends_on:
       mysql:
         condition: service_healthy
@@ -46,16 +46,15 @@ services:
       COC_OUTPUT_DIR: /app/CACHE
     volumes:
       # Mount source code for development
-      - ./mrp-filegen/src:/app/src:ro
+      - ./filegen/src:/app/src:ro
       # Mount output directory for generated PDFs
-      - ./mrp-filegen/output:/app/CACHE:rw
+      - ./filegen/output:/app/CACHE:rw
       # Mount templates
-      - ./mrp-filegen/file_templates:/app/templates:ro
-      # Mount requirements.txt for installation
-      - ./mrp-filegen/requirements.txt:/app/requirements.txt:ro
+      - ./filegen/file_templates:/app/templates:ro
+      - ./filegen/requirements.txt:/app/requirements.txt:ro
     working_dir: /app
     networks:
-      - amc-mrp-network
+      - mrp-network
     # Install dependencies and keep container running
     command: |
       bash -c "
@@ -69,9 +68,9 @@ services:
       "
 
   # Web Dashboard Service
-  web-app:
+  frontend:
     image: python:3.11-slim
-    container_name: amc-mrp-web
+    container_name: mrp-frontend
     depends_on:
       mysql:
         condition: service_healthy
@@ -89,13 +88,13 @@ services:
       PO_TEMPLATE_PATH: /app/file_templates/PO Template.docx
       PO_OUTPUT_DIR: /app/CACHE
     volumes:
-      - ./mrp-webapp:/app/web:rw
-      - ./mrp-webapp/CACHE:/app/CACHE:rw
-      - ./mrp-filegen/file_templates:/app/file_templates:ro
-      - ./mrp-filegen/src:/app/generators:ro
+      - ./frontend:/app/web:rw
+      - ./frontend/CACHE:/app/CACHE:rw
+      - ./filegen/file_templates:/app/file_templates:ro
+      - ./filegen/src:/app/generators:ro
     working_dir: /app/
     networks:
-      - amc-mrp-network
+      - mrp-network
     command: |
       bash -c "
         echo 'Setting up web dashboard...' &&
@@ -111,9 +110,9 @@ services:
       "
 
   # MRP Backend Service (QuickBooks Integration)
-  mrp-backend:
+  backend:
     image: python:3.11-slim
-    container_name: amc-mrp-backend
+    container_name: mrp-backend
     ports:
       - "5002:5002"
     environment:
@@ -132,10 +131,10 @@ services:
       SECRET_KEY: ${FLASK_SECRET_KEY}
     volumes:
       # Mount source code for development
-      - ./mrp-backend:/app:rw
+      - ./backend:/app:rw
     working_dir: /app
     networks:
-      - amc-mrp-network
+      - mrp-network
     command: |
       bash -c "
         echo 'Setting up MRP Backend...' &&
@@ -146,7 +145,7 @@ services:
       "
 
 networks:
-  amc-mrp-network:
+  mrp-network:
     driver: bridge
 
 volumes:

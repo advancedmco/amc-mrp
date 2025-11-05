@@ -45,8 +45,10 @@ QB_CLIENT_ID = os.getenv('QUICKBOOKS_CLIENT_ID')
 QB_CLIENT_SECRET = os.getenv('QUICKBOOKS_CLIENT_SECRET')
 QB_SANDBOX_BASE_URL = os.getenv('QUICKBOOKS_SANDBOX_BASE_URL', 'https://sandbox-quickbooks.api.intuit.com')
 QB_COMPANY_ID = os.getenv('QUICKBOOKS_COMPANY_ID')  # Will be set during OAuth if not provided
+QB_ENVIRONMENT = os.getenv('QB_ENVIRONMENT', 'sandbox')
 PRODUCTION_URI = os.getenv('PRODUCTION_URI', 'http://localhost:5002')
-QB_REDIRECT_URI = f'{PRODUCTION_URI}/callback'  # Use production URI for callback
+# Use QB_REDIRECT_URI if provided, otherwise construct from PRODUCTION_URI
+QB_REDIRECT_URI = os.getenv('QB_REDIRECT_URI', f'{PRODUCTION_URI}/callback')
 
 # Validate required environment variables
 def validate_env_vars():
@@ -476,7 +478,25 @@ def search(index_name):
 
 @app.route('/api/cache/status', methods=['GET'])
 def cache_status():
+    # Check if QuickBooks is authenticated and connected
+    is_authenticated = tokens['access_token'] is not None and tokens['refresh_token'] is not None
+    has_valid_config = QB_CLIENT_ID is not None and QB_CLIENT_SECRET is not None
+    has_data = len(cached_data['customers']) > 0 or len(cached_data['vendors']) > 0 or len(cached_data['items']) > 0
+
+    # Determine connection status
+    if not has_valid_config:
+        connection_status = 'not_configured'
+    elif not is_authenticated:
+        connection_status = 'not_authenticated'
+    elif not has_data:
+        connection_status = 'authenticated_no_data'
+    else:
+        connection_status = 'connected'
+
     return jsonify({
+        'connection_status': connection_status,
+        'is_authenticated': is_authenticated,
+        'has_valid_config': has_valid_config,
         'last_updated': cached_data['last_updated'].isoformat() if cached_data['last_updated'] else None,
         'customers_count': len(cached_data['customers']),
         'vendors_count': len(cached_data['vendors']),
@@ -488,12 +508,129 @@ def cache_status():
 def get_config():
     """Get current configuration for debugging"""
     return jsonify({
-        'company_id': QB_COMPANY_ID,
+        'company_id': tokens.get('company_id') or QB_COMPANY_ID,
         'client_id': QB_CLIENT_ID[:10] + '...' if QB_CLIENT_ID else None,  # Partial for security
         'has_access_token': tokens['access_token'] is not None,
         'has_refresh_token': tokens['refresh_token'] is not None,
-        'token_expires_at': tokens['expires_at'].isoformat() if tokens['expires_at'] else None
+        'token_expires_at': tokens['expires_at'].isoformat() if tokens['expires_at'] else None,
+        'redirect_uri': QB_REDIRECT_URI,
+        'base_url': QB_SANDBOX_BASE_URL,
+        'environment': os.getenv('QB_ENVIRONMENT', 'sandbox')
     })
+
+@app.route('/api/auth/url', methods=['GET'])
+def get_auth_url():
+    """Generate QuickBooks OAuth authorization URL"""
+    if not QB_CLIENT_ID or not QB_CLIENT_SECRET:
+        return jsonify({
+            'error': 'QuickBooks credentials not configured. Please set QUICKBOOKS_CLIENT_ID and QUICKBOOKS_CLIENT_SECRET in your .env file'
+        }), 400
+
+    # Generate state parameter for security (optional but recommended)
+    import secrets
+    state = secrets.token_urlsafe(32)
+
+    # Build authorization URL
+    auth_url = (
+        'https://appcenter.intuit.com/connect/oauth2?'
+        f'client_id={QB_CLIENT_ID}&'
+        f'scope=com.intuit.quickbooks.accounting&'
+        f'redirect_uri={QB_REDIRECT_URI}&'
+        f'response_type=code&'
+        f'state={state}'
+    )
+
+    logger.info(f"Generated OAuth URL with redirect URI: {QB_REDIRECT_URI}")
+
+    return jsonify({
+        'auth_url': auth_url,
+        'state': state
+    })
+
+@app.route('/api/disconnect', methods=['POST'])
+def disconnect():
+    """Disconnect from QuickBooks by clearing tokens"""
+    global tokens
+
+    try:
+        # Clear tokens
+        tokens = {
+            'access_token': None,
+            'refresh_token': None,
+            'expires_at': None,
+            'company_id': None
+        }
+
+        # Delete token file
+        if os.path.exists(TOKEN_FILE):
+            os.remove(TOKEN_FILE)
+            logger.info("Token file deleted")
+
+        # Clear cached data
+        global cached_data
+        cached_data = {
+            'customers': [],
+            'vendors': [],
+            'items': [],
+            'invoices': [],
+            'last_updated': None
+        }
+
+        logger.info("Disconnected from QuickBooks")
+
+        return jsonify({
+            'success': True,
+            'message': 'Disconnected from QuickBooks successfully'
+        })
+
+    except Exception as e:
+        logger.error(f"Error disconnecting: {str(e)}")
+        return jsonify({
+            'error': str(e)
+        }), 500
+
+@app.route('/api/test', methods=['GET'])
+def test_connection():
+    """Test QuickBooks connection"""
+    if not tokens['access_token']:
+        return jsonify({
+            'success': False,
+            'error': 'Not authenticated. Please connect to QuickBooks first.'
+        }), 401
+
+    try:
+        # Try to fetch company info
+        company_id = tokens.get('company_id') or QB_COMPANY_ID
+
+        if not company_id:
+            return jsonify({
+                'success': False,
+                'error': 'Company ID not available. Please complete OAuth flow.'
+            }), 400
+
+        # Make a simple API call to test connection
+        response = make_qb_request("companyinfo/" + company_id)
+
+        if response and 'CompanyInfo' in response:
+            company_info = response['CompanyInfo']
+            return jsonify({
+                'success': True,
+                'message': f"Successfully connected to {company_info.get('CompanyName', 'QuickBooks')}",
+                'company_name': company_info.get('CompanyName'),
+                'company_id': company_id
+            })
+        else:
+            return jsonify({
+                'success': False,
+                'error': 'Failed to retrieve company information. Connection may be invalid.'
+            }), 500
+
+    except Exception as e:
+        logger.error(f"Connection test failed: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
 
 @app.route('/api/cache/refresh', methods=['POST'])
 def manual_refresh():

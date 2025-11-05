@@ -2,21 +2,236 @@
 
 {% block title %}MRP Dashboard - Advanced Machine Co.{% endblock %}
 
+{% block extra_css %}
+<style>
+    .metric-card {
+        transition: transform 0.2s;
+        cursor: pointer;
+    }
+    .metric-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15) !important;
+    }
+    .metric-icon {
+        font-size: 2rem;
+        opacity: 0.8;
+    }
+    .metric-value {
+        font-size: 2rem;
+        font-weight: bold;
+        margin: 0.5rem 0;
+    }
+    .metric-label {
+        font-size: 0.875rem;
+        color: #6c757d;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+    .chart-container {
+        position: relative;
+        height: 300px;
+    }
+    .sync-status-badge {
+        animation: pulse 2s infinite;
+    }
+    @keyframes pulse {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.7; }
+    }
+    .filter-section {
+        background-color: #f8f9fa;
+        padding: 1rem;
+        border-radius: 0.5rem;
+        margin-bottom: 1rem;
+    }
+    .refresh-controls {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+    }
+    .auto-refresh-toggle {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+</style>
+{% endblock %}
+
 {% block content %}
 <!-- Dashboard Header -->
 <div class="row mb-4">
     <div class="col-12">
-        <div class="section-header">
-            <h1 class="mb-0">
-                <i class="bi bi-speedometer2 me-2"></i>
-                MRP Dashboard
-            </h1>
-            <p class="mb-0 mt-2">Manufacturing Resource Planning System</p>
+        <div class="section-header d-flex justify-content-between align-items-center">
+            <div>
+                <h1 class="mb-0">
+                    <i class="bi bi-speedometer2 me-2"></i>
+                    MRP Dashboard
+                </h1>
+                <p class="mb-0 mt-2">Manufacturing Resource Planning System</p>
+            </div>
+            <div class="refresh-controls">
+                <div class="auto-refresh-toggle">
+                    <input type="checkbox" class="form-check-input" id="autoRefreshToggle">
+                    <label class="form-check-label text-white" for="autoRefreshToggle">
+                        Auto-refresh (30s)
+                    </label>
+                </div>
+                <button class="btn btn-light btn-sm" onclick="refreshDashboard()">
+                    <i class="bi bi-arrow-clockwise"></i> Refresh
+                </button>
+            </div>
         </div>
     </div>
 </div>
 
-<!-- Section 1: Live Orders -->
+<!-- QuickBooks Sync Status -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-body py-2">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div class="d-flex align-items-center">
+                        <i class="bi bi-cloud-arrow-down me-2"></i>
+                        <strong>QuickBooks Sync:</strong>
+                        <span id="qbSyncStatus" class="ms-2 badge bg-secondary">Loading...</span>
+                        <span id="qbLastSync" class="ms-2 text-muted small"></span>
+                    </div>
+                    <button class="btn btn-sm btn-outline-primary" onclick="refreshQBCache()">
+                        <i class="bi bi-arrow-repeat"></i> Sync Now
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- KPI Metrics -->
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="card metric-card">
+            <div class="card-body text-center">
+                <i class="bi bi-list-task metric-icon text-primary"></i>
+                <div class="metric-value text-primary" id="metricActiveOrders">-</div>
+                <div class="metric-label">Active Orders</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card metric-card">
+            <div class="card-body text-center">
+                <i class="bi bi-calendar-week metric-icon text-warning"></i>
+                <div class="metric-value text-warning" id="metricDueThisWeek">-</div>
+                <div class="metric-label">Due This Week</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card metric-card">
+            <div class="card-body text-center">
+                <i class="bi bi-exclamation-triangle metric-icon text-danger"></i>
+                <div class="metric-value text-danger" id="metricOverdue">-</div>
+                <div class="metric-label">Overdue Orders</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card metric-card">
+            <div class="card-body text-center">
+                <i class="bi bi-currency-dollar metric-icon text-success"></i>
+                <div class="metric-value text-success" id="metricRevenue">-</div>
+                <div class="metric-label">30-Day Revenue</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Secondary Metrics -->
+<div class="row mb-4">
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-body text-center">
+                <i class="bi bi-check-circle text-success"></i>
+                <strong id="metricCompleted" class="ms-2">-</strong>
+                <small class="text-muted ms-1">Completed This Month</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-body text-center">
+                <i class="bi bi-hourglass-split text-info"></i>
+                <strong id="metricAvgDays" class="ms-2">-</strong>
+                <small class="text-muted ms-1">Avg Completion Days</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-body text-center">
+                <i class="bi bi-cash-coin text-warning"></i>
+                <strong id="metricPendingPayments" class="ms-2">-</strong>
+                <small class="text-muted ms-1">Pending Payments</small>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Charts Section -->
+<div class="row mb-4">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h6 class="mb-0"><i class="bi bi-pie-chart me-2"></i>Orders by Status</h6>
+            </div>
+            <div class="card-body">
+                <div class="chart-container">
+                    <canvas id="statusChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h6 class="mb-0"><i class="bi bi-bar-chart me-2"></i>Orders by Priority</h6>
+            </div>
+            <div class="card-body">
+                <div class="chart-container">
+                    <canvas id="priorityChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mb-4">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <h6 class="mb-0"><i class="bi bi-graph-up me-2"></i>Completion Timeline (30 Days)</h6>
+            </div>
+            <div class="card-body">
+                <div class="chart-container">
+                    <canvas id="timelineChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header">
+                <h6 class="mb-0"><i class="bi bi-people me-2"></i>Payment Status</h6>
+            </div>
+            <div class="card-body">
+                <div class="chart-container">
+                    <canvas id="paymentChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Live Orders Section with Filters -->
 <div class="row mb-4">
     <div class="col-12">
         <div class="card">
@@ -25,101 +240,158 @@
                     <i class="bi bi-play-circle me-2"></i>
                     Live Orders
                 </h5>
-                <span class="badge bg-light text-dark">{{ live_orders|length }} orders</span>
+                <span class="badge bg-light text-dark" id="liveOrdersCount">{{ live_orders|length }} orders</span>
             </div>
-            <div class="card-body p-0">
-                {% if live_orders %}
-                <div class="table-responsive">
-                    <table class="table table-hover mb-0">
-                        <thead>
-                            <tr>
-                                <th>Work Order</th>
-                                <th>Customer</th>
-                                <th>Part</th>
-                                <th>Material</th>
-                                <th>Quantity</th>
-                                <th>Due Date</th>
-                                <th>Status</th>
-                                <th>Priority</th>
-                                <th>Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for order in live_orders %}
-                            <tr>
-                                <td>
-                                    <strong>{{ order.WorkOrderNumber }}</strong>
-                                    {% if order.CustomerPONumber %}
-                                    <br><small class="text-muted">PO: {{ order.CustomerPONumber }}</small>
-                                    {% endif %}
-                                </td>
-                                <td>{{ order.CustomerName }}</td>
-                                <td>
-                                    <strong>{{ order.PartNumber }}</strong>
-                                    <br><small class="text-muted">{{ order.PartName }}</small>
-                                </td>
-                                <td>{{ order.Material or 'N/A' }}</td>
-                                <td>
-                                    {{ order.QuantityCompleted }}/{{ order.QuantityOrdered }}
-                                    <br><small class="text-muted">
-                                        {% set progress = (order.QuantityCompleted / order.QuantityOrdered * 100) if order.QuantityOrdered > 0 else 0 %}
-                                        {{ "%.0f"|format(progress) }}% complete
-                                    </small>
-                                </td>
-                                <td>
-                                    {% if order.DueDate %}
-                                        {{ order.DueDate.strftime('%m/%d/%Y') }}
-                                        <br>
-                                        {% if order.DaysUntilDue is not none %}
-                                            {% if order.DaysUntilDue < 0 %}
-                                                <small class="text-danger fw-bold">{{ order.DaysUntilDue|abs }} days overdue</small>
-                                            {% elif order.DaysUntilDue <= 3 %}
-                                                <small class="text-warning fw-bold">{{ order.DaysUntilDue }} days left</small>
-                                            {% else %}
-                                                <small class="text-success">{{ order.DaysUntilDue }} days left</small>
-                                            {% endif %}
+            <div class="card-body">
+                <!-- Filters -->
+                <div class="filter-section">
+                    <div class="row g-3">
+                        <div class="col-md-3">
+                            <label class="form-label small">Search</label>
+                            <input type="text" class="form-control form-control-sm" id="searchInput" placeholder="WO#, Customer, Part...">
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label small">Status</label>
+                            <select class="form-select form-select-sm" id="statusFilter">
+                                <option value="">All Statuses</option>
+                                <option value="Pending Material">Pending Material</option>
+                                <option value="Idle">Idle</option>
+                                <option value="On Machine">On Machine</option>
+                                <option value="Secondary Operations">Secondary Operations</option>
+                                <option value="Quality Control">Quality Control</option>
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label small">Priority</label>
+                            <select class="form-select form-select-sm" id="priorityFilter">
+                                <option value="">All Priorities</option>
+                                <option value="Urgent">Urgent</option>
+                                <option value="High">High</option>
+                                <option value="Normal">Normal</option>
+                                <option value="Low">Low</option>
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label small">Sort By</label>
+                            <select class="form-select form-select-sm" id="sortBySelect">
+                                <option value="CreatedDate">Created Date</option>
+                                <option value="DueDate">Due Date</option>
+                                <option value="WorkOrderNumber">WO Number</option>
+                                <option value="CustomerName">Customer</option>
+                                <option value="Priority">Priority</option>
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label small">Order</label>
+                            <select class="form-select form-select-sm" id="sortOrderSelect">
+                                <option value="DESC">Descending</option>
+                                <option value="ASC">Ascending</option>
+                            </select>
+                        </div>
+                        <div class="col-md-1">
+                            <label class="form-label small">&nbsp;</label>
+                            <button class="btn btn-primary btn-sm w-100" onclick="applyFilters()">
+                                <i class="bi bi-filter"></i> Apply
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Orders Table -->
+                <div id="ordersTableContainer">
+                    {% if live_orders %}
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0">
+                            <thead>
+                                <tr>
+                                    <th>Work Order</th>
+                                    <th>Customer</th>
+                                    <th>Part</th>
+                                    <th>Material</th>
+                                    <th>Quantity</th>
+                                    <th>Due Date</th>
+                                    <th>Status</th>
+                                    <th>Priority</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="ordersTableBody">
+                                {% for order in live_orders %}
+                                <tr>
+                                    <td>
+                                        <strong>{{ order.WorkOrderNumber }}</strong>
+                                        {% if order.CustomerPONumber %}
+                                        <br><small class="text-muted">PO: {{ order.CustomerPONumber }}</small>
                                         {% endif %}
-                                    {% else %}
-                                        N/A
-                                    {% endif %}
-                                </td>
-                                <td>
-                                    <span class="badge {{ 'bg-warning' if order.Status == 'Pending Material' else 'bg-secondary' if order.Status == 'Idle' else 'bg-primary' if order.Status == 'On Machine' else 'bg-info' if order.Status == 'Secondary Operations' else 'bg-warning' if order.Status == 'Quality Control' else 'bg-success' }}">
-                                        {{ order.Status }}
-                                    </span>
-                                </td>
-                                <td>
-                                    <span class="badge {{ 'bg-secondary' if order.Priority == 'Low' else 'bg-primary' if order.Priority == 'Normal' else 'bg-warning' if order.Priority == 'High' else 'bg-danger' }}">
-                                        {{ order.Priority }}
-                                    </span>
-                                </td>
-                                <td>
-                                    <div class="btn-group btn-group-sm" role="group">
-                                        <button type="button" class="btn btn-outline-primary" onclick="viewOrderDetails({{ order.WorkOrderID }})" title="View Details">
-                                            <i class="bi bi-eye"></i>
-                                        </button>
-                                        <button type="button" class="btn btn-outline-success" onclick="showCreatePOModal({{ order.WorkOrderID }})" title="Create PO">
-                                            <i class="bi bi-file-earmark-plus"></i>
-                                        </button>
-                                    </div>
-                                </td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
+                                    </td>
+                                    <td>{{ order.CustomerName }}</td>
+                                    <td>
+                                        <strong>{{ order.PartNumber }}</strong>
+                                        <br><small class="text-muted">{{ order.PartName }}</small>
+                                    </td>
+                                    <td>{{ order.Material or 'N/A' }}</td>
+                                    <td>
+                                        {{ order.QuantityCompleted }}/{{ order.QuantityOrdered }}
+                                        <br><small class="text-muted">
+                                            {% set progress = (order.QuantityCompleted / order.QuantityOrdered * 100) if order.QuantityOrdered > 0 else 0 %}
+                                            {{ "%.0f"|format(progress) }}% complete
+                                        </small>
+                                    </td>
+                                    <td>
+                                        {% if order.DueDate %}
+                                            {{ order.DueDate.strftime('%m/%d/%Y') }}
+                                            <br>
+                                            {% if order.DaysUntilDue is not none %}
+                                                {% if order.DaysUntilDue < 0 %}
+                                                    <small class="text-danger fw-bold">{{ order.DaysUntilDue|abs }} days overdue</small>
+                                                {% elif order.DaysUntilDue <= 3 %}
+                                                    <small class="text-warning fw-bold">{{ order.DaysUntilDue }} days left</small>
+                                                {% else %}
+                                                    <small class="text-success">{{ order.DaysUntilDue }} days left</small>
+                                                {% endif %}
+                                            {% endif %}
+                                        {% else %}
+                                            N/A
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <span class="badge {{ 'bg-warning' if order.Status == 'Pending Material' else 'bg-secondary' if order.Status == 'Idle' else 'bg-primary' if order.Status == 'On Machine' else 'bg-info' if order.Status == 'Secondary Operations' else 'bg-warning' if order.Status == 'Quality Control' else 'bg-success' }}">
+                                            {{ order.Status }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <span class="badge {{ 'bg-secondary' if order.Priority == 'Low' else 'bg-primary' if order.Priority == 'Normal' else 'bg-warning' if order.Priority == 'High' else 'bg-danger' }}">
+                                            {{ order.Priority }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <div class="btn-group btn-group-sm" role="group">
+                                            <button type="button" class="btn btn-outline-primary" onclick="viewOrderDetails({{ order.WorkOrderID }})" title="View Details">
+                                                <i class="bi bi-eye"></i>
+                                            </button>
+                                            <button type="button" class="btn btn-outline-success" onclick="showCreatePOModal({{ order.WorkOrderID }})" title="Create PO">
+                                                <i class="bi bi-file-earmark-plus"></i>
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="text-center py-4">
+                        <i class="bi bi-inbox display-4 text-muted"></i>
+                        <p class="text-muted mt-2">No live orders found</p>
+                    </div>
+                    {% endif %}
                 </div>
-                {% else %}
-                <div class="text-center py-4">
-                    <i class="bi bi-inbox display-4 text-muted"></i>
-                    <p class="text-muted mt-2">No live orders found</p>
-                </div>
-                {% endif %}
             </div>
         </div>
     </div>
 </div>
 
-<!-- Section 2: Recent Completed Orders -->
+<!-- Recent Completed Orders -->
 <div class="row mb-4">
     <div class="col-12">
         <div class="card">
@@ -170,7 +442,7 @@
                                 </td>
                                 <td>
                                     <div class="dropdown">
-                                        <button class="btn btn-sm btn-outline-secondary dropdown-toggle {{ 'text-danger' if order.PaymentStatus == 'Not Received' else 'text-warning' if order.PaymentStatus == 'In Progress' else 'text-success' }}" 
+                                        <button class="btn btn-sm btn-outline-secondary dropdown-toggle {{ 'text-danger' if order.PaymentStatus == 'Not Received' else 'text-warning' if order.PaymentStatus == 'In Progress' else 'text-success' }}"
                                                 type="button" data-bs-toggle="dropdown">
                                             {{ order.PaymentStatus or 'Not Received' }}
                                         </button>
@@ -221,96 +493,6 @@
     </div>
 </div>
 
-<!-- Section 3: Old Orders -->
-<div class="row mb-4">
-    <div class="col-12">
-        <div class="card">
-            <div class="card-header d-flex justify-content-between align-items-center">
-                <h5 class="mb-0">
-                    <i class="bi bi-archive me-2"></i>
-                    Old Orders
-                </h5>
-                <span class="badge bg-light text-dark">{{ old_orders|length }} orders (older than 30 days)</span>
-            </div>
-            <div class="card-body p-0">
-                {% if old_orders %}
-                <div class="table-responsive">
-                    <table class="table table-hover mb-0">
-                        <thead>
-                            <tr>
-                                <th>Work Order</th>
-                                <th>Customer</th>
-                                <th>Part</th>
-                                <th>Quantity</th>
-                                <th>Completed</th>
-                                <th>Payment Status</th>
-                                <th>COC Status</th>
-                                <th>Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for order in old_orders %}
-                            <tr>
-                                <td>
-                                    <strong>{{ order.WorkOrderNumber }}</strong>
-                                    {% if order.CustomerPONumber %}
-                                    <br><small class="text-muted">PO: {{ order.CustomerPONumber }}</small>
-                                    {% endif %}
-                                </td>
-                                <td>{{ order.CustomerName }}</td>
-                                <td>
-                                    <strong>{{ order.PartNumber }}</strong>
-                                    <br><small class="text-muted">{{ order.PartName }}</small>
-                                </td>
-                                <td>{{ order.QuantityCompleted }}</td>
-                                <td>
-                                    {% if order.CompletionDate %}
-                                        {{ order.CompletionDate.strftime('%m/%d/%Y') }}
-                                    {% else %}
-                                        N/A
-                                    {% endif %}
-                                </td>
-                                <td>
-                                    <span class="badge {{ 'bg-danger' if order.PaymentStatus == 'Not Received' else 'bg-warning' if order.PaymentStatus == 'In Progress' else 'bg-success' }}">
-                                        {{ order.PaymentStatus or 'Not Received' }}
-                                    </span>
-                                </td>
-                                <td>
-                                    {% if order.CertificateNumber %}
-                                        <span class="badge bg-success">Generated</span>
-                                        <br><small class="text-muted">{{ order.CertificateNumber }}</small>
-                                    {% else %}
-                                        <span class="badge bg-secondary">N/A</span>
-                                    {% endif %}
-                                </td>
-                                <td>
-                                    <div class="btn-group btn-group-sm" role="group">
-                                        <button type="button" class="btn btn-outline-primary" onclick="viewOrderDetails({{ order.WorkOrderID }})" title="View Details">
-                                            <i class="bi bi-eye"></i>
-                                        </button>
-                                        {% if order.COCPath %}
-                                        <button type="button" class="btn btn-outline-info" onclick="downloadCOC('{{ order.COCPath }}')" title="Download COC">
-                                            <i class="bi bi-download"></i>
-                                        </button>
-                                        {% endif %}
-                                    </div>
-                                </td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                </div>
-                {% else %}
-                <div class="text-center py-4">
-                    <i class="bi bi-inbox display-4 text-muted"></i>
-                    <p class="text-muted mt-2">No old orders found</p>
-                </div>
-                {% endif %}
-            </div>
-        </div>
-    </div>
-</div>
-
 <!-- Order Details Modal -->
 <div class="modal fade" id="orderDetailsModal" tabindex="-1">
     <div class="modal-dialog modal-lg">
@@ -344,11 +526,399 @@
 {% endblock %}
 
 {% block extra_js %}
+<!-- Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+
 <script>
-// View order details
+// Global variables
+let autoRefreshInterval = null;
+let charts = {};
+
+// Initialize dashboard
+document.addEventListener('DOMContentLoaded', function() {
+    loadDashboardMetrics();
+    loadCharts();
+    loadQBSyncStatus();
+
+    // Setup auto-refresh toggle
+    document.getElementById('autoRefreshToggle').addEventListener('change', function() {
+        if (this.checked) {
+            startAutoRefresh();
+        } else {
+            stopAutoRefresh();
+        }
+    });
+
+    // Setup payment status event listeners
+    document.addEventListener('click', function(e) {
+        if (e.target.classList.contains('payment-status-btn')) {
+            e.preventDefault();
+            const orderId = e.target.getAttribute('data-order-id');
+            const status = e.target.getAttribute('data-status');
+            updatePaymentStatus(orderId, status);
+        }
+    });
+
+    // Setup search on Enter key
+    document.getElementById('searchInput').addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') {
+            applyFilters();
+        }
+    });
+});
+
+// Load dashboard metrics
+function loadDashboardMetrics() {
+    fetch('/api/dashboard/metrics')
+        .then(response => response.json())
+        .then(data => {
+            document.getElementById('metricActiveOrders').textContent = data.active_orders || 0;
+            document.getElementById('metricDueThisWeek').textContent = data.due_this_week || 0;
+            document.getElementById('metricOverdue').textContent = data.overdue_orders || 0;
+            document.getElementById('metricRevenue').textContent = formatCurrency(data.monthly_revenue || 0);
+            document.getElementById('metricCompleted').textContent = data.completed_this_month || 0;
+            document.getElementById('metricAvgDays').textContent = (data.avg_completion_days || 0).toFixed(1) + ' days';
+            document.getElementById('metricPendingPayments').textContent = data.pending_payments || 0;
+        })
+        .catch(error => {
+            console.error('Error loading metrics:', error);
+        });
+}
+
+// Load charts
+function loadCharts() {
+    fetch('/api/dashboard/charts')
+        .then(response => response.json())
+        .then(data => {
+            createStatusChart(data.orders_by_status || []);
+            createPriorityChart(data.orders_by_priority || []);
+            createTimelineChart(data.completion_timeline || []);
+            createPaymentChart(data.payment_status || []);
+        })
+        .catch(error => {
+            console.error('Error loading charts:', error);
+        });
+}
+
+// Create status chart
+function createStatusChart(data) {
+    const ctx = document.getElementById('statusChart');
+    if (charts.statusChart) charts.statusChart.destroy();
+
+    const labels = data.map(item => item.Status);
+    const values = data.map(item => item.count);
+    const colors = ['#f39c12', '#6c757d', '#3498db', '#8e44ad', '#e67e22'];
+
+    charts.statusChart = new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+            labels: labels,
+            datasets: [{
+                data: values,
+                backgroundColor: colors.slice(0, values.length),
+                borderWidth: 2,
+                borderColor: '#fff'
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'bottom'
+                }
+            }
+        }
+    });
+}
+
+// Create priority chart
+function createPriorityChart(data) {
+    const ctx = document.getElementById('priorityChart');
+    if (charts.priorityChart) charts.priorityChart.destroy();
+
+    const labels = data.map(item => item.Priority);
+    const values = data.map(item => item.count);
+    const colors = ['#e74c3c', '#f39c12', '#3498db', '#6c757d'];
+
+    charts.priorityChart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: labels,
+            datasets: [{
+                label: 'Orders',
+                data: values,
+                backgroundColor: colors.slice(0, values.length),
+                borderWidth: 1,
+                borderColor: colors.slice(0, values.length)
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    display: false
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        stepSize: 1
+                    }
+                }
+            }
+        }
+    });
+}
+
+// Create timeline chart
+function createTimelineChart(data) {
+    const ctx = document.getElementById('timelineChart');
+    if (charts.timelineChart) charts.timelineChart.destroy();
+
+    const labels = data.map(item => new Date(item.date).toLocaleDateString());
+    const values = data.map(item => item.count);
+
+    charts.timelineChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: labels,
+            datasets: [{
+                label: 'Completed Orders',
+                data: values,
+                borderColor: '#27ae60',
+                backgroundColor: 'rgba(39, 174, 96, 0.1)',
+                borderWidth: 2,
+                fill: true,
+                tension: 0.4
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    display: false
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        stepSize: 1
+                    }
+                }
+            }
+        }
+    });
+}
+
+// Create payment chart
+function createPaymentChart(data) {
+    const ctx = document.getElementById('paymentChart');
+    if (charts.paymentChart) charts.paymentChart.destroy();
+
+    const labels = data.map(item => item.PaymentStatus || 'Not Received');
+    const values = data.map(item => item.count);
+    const colors = ['#e74c3c', '#f39c12', '#27ae60'];
+
+    charts.paymentChart = new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+            labels: labels,
+            datasets: [{
+                data: values,
+                backgroundColor: colors.slice(0, values.length),
+                borderWidth: 2,
+                borderColor: '#fff'
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'bottom'
+                }
+            }
+        }
+    });
+}
+
+// Load QB sync status
+function loadQBSyncStatus() {
+    fetch('/api/qb/sync_status')
+        .then(response => response.json())
+        .then(data => {
+            const statusBadge = document.getElementById('qbSyncStatus');
+            const lastSyncText = document.getElementById('qbLastSync');
+
+            if (data.error) {
+                statusBadge.className = 'ms-2 badge bg-danger';
+                statusBadge.textContent = 'Offline';
+                lastSyncText.textContent = '';
+            } else {
+                statusBadge.className = 'ms-2 badge bg-success';
+                statusBadge.textContent = 'Online';
+
+                if (data.last_updated) {
+                    const lastUpdate = new Date(data.last_updated);
+                    const now = new Date();
+                    const minutesAgo = Math.floor((now - lastUpdate) / 60000);
+                    lastSyncText.textContent = `Last synced ${minutesAgo} minutes ago`;
+                }
+            }
+        })
+        .catch(error => {
+            console.error('Error loading QB sync status:', error);
+            document.getElementById('qbSyncStatus').className = 'ms-2 badge bg-danger';
+            document.getElementById('qbSyncStatus').textContent = 'Error';
+        });
+}
+
+// Refresh QB cache
+function refreshQBCache() {
+    showLoading('Syncing QuickBooks data...');
+
+    fetch('/api/qb/refresh', { method: 'POST' })
+        .then(response => response.json())
+        .then(data => {
+            hideLoading();
+            if (data.error) {
+                showAlert('Error syncing QuickBooks: ' + data.error, 'danger');
+            } else {
+                showAlert('QuickBooks data synced successfully!', 'success');
+                loadQBSyncStatus();
+            }
+        })
+        .catch(error => {
+            hideLoading();
+            showAlert('Error syncing QuickBooks: ' + error.message, 'danger');
+        });
+}
+
+// Apply filters to orders table
+function applyFilters() {
+    const search = document.getElementById('searchInput').value;
+    const status = document.getElementById('statusFilter').value;
+    const priority = document.getElementById('priorityFilter').value;
+    const sortBy = document.getElementById('sortBySelect').value;
+    const sortOrder = document.getElementById('sortOrderSelect').value;
+
+    const params = new URLSearchParams();
+    if (search) params.append('search', search);
+    if (status) params.append('status', status);
+    if (priority) params.append('priority', priority);
+    params.append('sort_by', sortBy);
+    params.append('sort_order', sortOrder);
+
+    showLoading('Loading orders...');
+
+    fetch('/api/orders?' + params.toString())
+        .then(response => response.json())
+        .then(data => {
+            hideLoading();
+            updateOrdersTable(data.orders);
+            document.getElementById('liveOrdersCount').textContent = data.total + ' orders';
+        })
+        .catch(error => {
+            hideLoading();
+            showAlert('Error loading orders: ' + error.message, 'danger');
+        });
+}
+
+// Update orders table
+function updateOrdersTable(orders) {
+    const tbody = document.getElementById('ordersTableBody');
+    if (!tbody) return;
+
+    if (orders.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="9" class="text-center py-4">No orders found</td></tr>';
+        return;
+    }
+
+    tbody.innerHTML = orders.map(order => `
+        <tr>
+            <td>
+                <strong>${order.WorkOrderNumber}</strong>
+                ${order.CustomerPONumber ? '<br><small class="text-muted">PO: ' + order.CustomerPONumber + '</small>' : ''}
+            </td>
+            <td>${order.CustomerName}</td>
+            <td>
+                <strong>${order.PartNumber}</strong>
+                <br><small class="text-muted">${order.PartName}</small>
+            </td>
+            <td>${order.Material || 'N/A'}</td>
+            <td>
+                ${order.QuantityCompleted}/${order.QuantityOrdered}
+                <br><small class="text-muted">${Math.round(order.QuantityCompleted / order.QuantityOrdered * 100)}% complete</small>
+            </td>
+            <td>
+                ${order.DueDate ? formatDate(order.DueDate) : 'N/A'}
+                ${order.DaysUntilDue !== null ? '<br><small class="' + getDaysUntilDueClass(order.DaysUntilDue) + '">' + getDaysUntilDueText(order.DaysUntilDue) + '</small>' : ''}
+            </td>
+            <td><span class="badge ${getStatusBadgeClass(order.Status)}">${order.Status}</span></td>
+            <td><span class="badge ${getPriorityBadgeClass(order.Priority)}">${order.Priority}</span></td>
+            <td>
+                <div class="btn-group btn-group-sm" role="group">
+                    <button type="button" class="btn btn-outline-primary" onclick="viewOrderDetails(${order.WorkOrderID})" title="View Details">
+                        <i class="bi bi-eye"></i>
+                    </button>
+                    <button type="button" class="btn btn-outline-success" onclick="showCreatePOModal(${order.WorkOrderID})" title="Create PO">
+                        <i class="bi bi-file-earmark-plus"></i>
+                    </button>
+                </div>
+            </td>
+        </tr>
+    `).join('');
+}
+
+// Get priority badge class
+function getPriorityBadgeClass(priority) {
+    const map = {
+        'Low': 'bg-secondary',
+        'Normal': 'bg-primary',
+        'High': 'bg-warning',
+        'Urgent': 'bg-danger'
+    };
+    return map[priority] || 'bg-secondary';
+}
+
+// Get days until due text
+function getDaysUntilDueText(days) {
+    if (days < 0) return Math.abs(days) + ' days overdue';
+    if (days <= 3) return days + ' days left';
+    return days + ' days left';
+}
+
+// Refresh dashboard
+function refreshDashboard() {
+    loadDashboardMetrics();
+    loadCharts();
+    loadQBSyncStatus();
+    applyFilters();
+    showAlert('Dashboard refreshed!', 'info');
+}
+
+// Auto-refresh functions
+function startAutoRefresh() {
+    autoRefreshInterval = setInterval(refreshDashboard, 30000); // 30 seconds
+    showAlert('Auto-refresh enabled (30s interval)', 'info');
+}
+
+function stopAutoRefresh() {
+    if (autoRefreshInterval) {
+        clearInterval(autoRefreshInterval);
+        autoRefreshInterval = null;
+    }
+}
+
+// View order details (reuse existing function)
 function viewOrderDetails(workOrderId) {
     showLoading('Loading order details...');
-    
+
     fetch(`/order_details/${workOrderId}`)
         .then(response => response.json())
         .then(data => {
@@ -357,7 +927,7 @@ function viewOrderDetails(workOrderId) {
                 showAlert(data.error, 'danger');
                 return;
             }
-            
+
             // Build order details HTML
             let html = `
                 <div class="row">
@@ -368,7 +938,7 @@ function viewOrderDetails(workOrderId) {
                             <tr><td><strong>Customer:</strong></td><td>${data.CustomerName}</td></tr>
                             <tr><td><strong>Customer PO:</strong></td><td>${data.CustomerPONumber || 'N/A'}</td></tr>
                             <tr><td><strong>Status:</strong></td><td><span class="badge ${getStatusBadgeClass(data.Status)}">${data.Status}</span></td></tr>
-                            <tr><td><strong>Priority:</strong></td><td><span class="badge ${data.Priority === 'High' ? 'bg-warning' : data.Priority === 'Urgent' ? 'bg-danger' : 'bg-primary'}">${data.Priority}</span></td></tr>
+                            <tr><td><strong>Priority:</strong></td><td><span class="badge ${getPriorityBadgeClass(data.Priority)}">${data.Priority}</span></td></tr>
                         </table>
                     </div>
                     <div class="col-md-6">
@@ -383,7 +953,7 @@ function viewOrderDetails(workOrderId) {
                     </div>
                 </div>
             `;
-            
+
             // Add BOM processes if available
             if (data.BOMProcesses && data.BOMProcesses.length > 0) {
                 html += `
@@ -405,7 +975,7 @@ function viewOrderDetails(workOrderId) {
                                     </thead>
                                     <tbody>
                 `;
-                
+
                 data.BOMProcesses.forEach(process => {
                     html += `
                         <tr>
@@ -419,7 +989,7 @@ function viewOrderDetails(workOrderId) {
                         </tr>
                     `;
                 });
-                
+
                 html += `
                                     </tbody>
                                 </table>
@@ -428,7 +998,7 @@ function viewOrderDetails(workOrderId) {
                     </div>
                 `;
             }
-            
+
             document.getElementById('orderDetailsContent').innerHTML = html;
             const modal = new bootstrap.Modal(document.getElementById('orderDetailsModal'));
             modal.show();
@@ -439,10 +1009,10 @@ function viewOrderDetails(workOrderId) {
         });
 }
 
-// Show create PO modal
+// Show create PO modal (reuse existing function)
 function showCreatePOModal(workOrderId) {
     showLoading('Loading BOM processes...');
-    
+
     fetch(`/order_details/${workOrderId}`)
         .then(response => response.json())
         .then(data => {
@@ -451,20 +1021,20 @@ function showCreatePOModal(workOrderId) {
                 showAlert(data.error, 'danger');
                 return;
             }
-            
+
             if (!data.BOMProcesses || data.BOMProcesses.length === 0) {
                 showAlert('No BOM processes found for this work order', 'warning');
                 return;
             }
-            
+
             // Filter processes that can have POs created
             const availableProcesses = data.BOMProcesses.filter(p => p.Status === 'Pending' && p.VendorName);
-            
+
             if (availableProcesses.length === 0) {
                 showAlert('No processes available for PO creation', 'warning');
                 return;
             }
-            
+
             let html = `
                 <div class="mb-3">
                     <h6>Work Order: ${data.WorkOrderNumber} - ${data.PartName}</h6>
@@ -483,7 +1053,7 @@ function showCreatePOModal(workOrderId) {
                         </thead>
                         <tbody>
             `;
-            
+
             availableProcesses.forEach(process => {
                 html += `
                     <tr>
@@ -502,13 +1072,13 @@ function showCreatePOModal(workOrderId) {
                     </tr>
                 `;
             });
-            
+
             html += `
                         </tbody>
                     </table>
                 </div>
             `;
-            
+
             document.getElementById('createPOContent').innerHTML = html;
             const modal = new bootstrap.Modal(document.getElementById('createPOModal'));
             modal.show();
@@ -519,10 +1089,10 @@ function showCreatePOModal(workOrderId) {
         });
 }
 
-// Create PO
+// Create PO (reuse existing function)
 function createPO(processId) {
     showLoading('Creating purchase order...');
-    
+
     fetch(`/create_po/${processId}`, {
         method: 'POST',
         headers: {
@@ -534,7 +1104,6 @@ function createPO(processId) {
         hideLoading();
         if (data.success) {
             showAlert(data.message, 'success');
-            // Close modal and refresh page
             const modal = bootstrap.Modal.getInstance(document.getElementById('createPOModal'));
             modal.hide();
             setTimeout(() => location.reload(), 1000);
@@ -548,10 +1117,10 @@ function createPO(processId) {
     });
 }
 
-// Generate COC
+// Generate COC (reuse existing function)
 function generateCOC(workOrderId) {
     showLoading('Generating Certificate of Completion...');
-    
+
     fetch(`/generate_coc/${workOrderId}`, {
         method: 'POST',
         headers: {
@@ -574,10 +1143,10 @@ function generateCOC(workOrderId) {
     });
 }
 
-// Update payment status
+// Update payment status (reuse existing function)
 function updatePaymentStatus(workOrderId, status) {
     showLoading('Updating payment status...');
-    
+
     fetch(`/update_payment/${workOrderId}`, {
         method: 'POST',
         headers: {
@@ -603,28 +1172,15 @@ function updatePaymentStatus(workOrderId, status) {
     });
 }
 
-// Download COC
+// Download COC (reuse existing function)
 function downloadCOC(filePath) {
     if (!filePath) {
         showAlert('COC file not available', 'warning');
         return;
     }
-    
+
     const filename = filePath.split('/').pop();
     window.open(`/download_pdf/${filename}`, '_blank');
 }
-
-// Event listeners
-document.addEventListener('DOMContentLoaded', function() {
-    // Payment status button event listeners
-    document.addEventListener('click', function(e) {
-        if (e.target.classList.contains('payment-status-btn')) {
-            e.preventDefault();
-            const orderId = e.target.getAttribute('data-order-id');
-            const status = e.target.getAttribute('data-status');
-            updatePaymentStatus(orderId, status);
-        }
-    });
-});
 </script>
 {% endblock %}

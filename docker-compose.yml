@@ -12,14 +12,16 @@ services:
     networks:
       - mrp-network
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-ptoor"]
-      timeout: 20s
-      retries: 10
-      interval: 10s
-      start_period: 40s
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-ptoor", "--silent"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+      start_period: 60s
     # No persistent volumes - fresh database on each startup
+    # tmpfs optimized for MariaDB with explicit size and mode
     tmpfs:
-      - /var/lib/mysql
+      - /var/lib/mysql:rw,noexec,nosuid,size=512m
+      - /tmp:rw,noexec,nosuid,size=64m
 
   # Web Dashboard and Document Generator Service
   frontend:

@@ -1,8 +1,14 @@
 MRP Database
 - Working dir for this component is mrp-db/
-- Contains supplimental data QBO isn't tracking. 
+- Contains supplimental data QBO isn't tracking.
 - Maintain single source of truth in QBO
 - Saves generated documents data so they can be listed and recalled at any time via web dashboard
+
+Configuration:
+- mariadb.cnf: Custom MariaDB config optimized for tmpfs usage and development
+  - Disables io_uring (kernel limitation workaround)
+  - Optimized for tmpfs with reduced flushing and no doublewrite
+  - Minimal logging for faster initialization
 - Generate a DDL in which the following items exist: BOM, Work Order, Parts, Vendors, Customers, Purchase Orders, Certificates.
 - A BOM contains sub items which can be materials like 1018, 4140, 303, 6061-T5, or processes like zinc, phosphate, DFL, chrome, or secondary ops like grinding, machineing, or supplimental material like shipping, or labor costs. Each line item must be dynamically arrangable in purchase order by click and drag from the web dashboard. Each BOM item must have a unique ID which can be linked to a PO at a later time (optional). Each can have an estimated price and a place for actual price, both optional. 
 - Parts table with unique part id, also non-duplicate part number, part name, filepath

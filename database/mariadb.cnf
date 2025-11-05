@@ -1,0 +1,45 @@
+# MariaDB Configuration for AMC MRP (Development)
+# Optimized for tmpfs usage and fast initialization
+
+[mysqld]
+# Skip io_uring since it's disabled in kernel - use libaio directly
+innodb_use_native_aio = 1
+
+# Optimize for tmpfs and development
+innodb_flush_method = O_DIRECT
+innodb_flush_log_at_trx_commit = 2
+innodb_doublewrite = 0
+
+# Buffer pool settings (small for dev with tmpfs)
+innodb_buffer_pool_size = 128M
+innodb_log_file_size = 32M
+innodb_log_buffer_size = 8M
+
+# Reduce overhead for development
+sync_binlog = 0
+innodb_flush_neighbors = 0
+
+# Improve initialization speed
+innodb_fast_shutdown = 1
+performance_schema = OFF
+
+# Connection settings
+max_connections = 50
+max_allowed_packet = 16M
+
+# Character set
+character-set-server = utf8mb4
+collation-server = utf8mb4_unicode_ci
+
+# Logging (minimal for development)
+log_error = /var/log/mysql/error.log
+slow_query_log = 0
+
+# Skip reverse DNS lookups
+skip-name-resolve
+
+[client]
+default-character-set = utf8mb4
+
+[mysql]
+default-character-set = utf8mb4

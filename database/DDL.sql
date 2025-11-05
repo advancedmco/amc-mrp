@@ -2,11 +2,8 @@
 -- Created: August 2025
 -- Purpose: Complete database structure for work order management, BOM, PO generation, and COC tracking
 
--- Create database and user (Docker Compose no longer creates these automatically)
-CREATE DATABASE IF NOT EXISTS amcmrp;
-CREATE USER IF NOT EXISTS 'amc'@'%' IDENTIFIED BY 'Workbench.lavender.chrome';
-GRANT ALL PRIVILEGES ON amcmrp.* TO 'amc'@'%';
-FLUSH PRIVILEGES;
+-- Note: Database and user creation is handled by 00-init-db-user.sh
+-- This file only contains the schema definition (DDL)
 
 USE amcmrp;
 

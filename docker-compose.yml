@@ -4,15 +4,23 @@ services:
     build:
       context: ./database
       dockerfile: Dockerfile
+      args:
+        # Choose data initialization mode: test (comprehensive) or minimal (production)
+        DATA_MODE: ${DATA_MODE:-test}
     container_name: mrp-db
     environment:
-      MYSQL_ROOT_PASSWORD: toor
+      # Root password for database initialization
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-toor}
+      # Application database credentials (used by init script)
+      DB_NAME: ${DB_NAME}
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD}
     ports:
       - "3307:3306"
     networks:
       - mrp-network
     healthcheck:
-      test: ["CMD", "mariadb-admin", "ping", "-h", "localhost", "-u", "root", "-ptoor", "--silent"]
+      test: ["CMD", "mariadb-admin", "ping", "-h", "localhost", "-u", "root", "-p${MYSQL_ROOT_PASSWORD:-toor}", "--silent"]
       interval: 5s
       timeout: 3s
       retries: 20

@@ -535,7 +535,7 @@ def index():
         live_orders = dashboard.get_live_orders()
         recent_completed = dashboard.get_recent_completed_orders()
         old_orders = dashboard.get_old_orders()
-        
+
         return render_template('dashboard.html',
                              live_orders=live_orders,
                              recent_completed=recent_completed,
@@ -547,6 +547,11 @@ def index():
                              live_orders=[],
                              recent_completed=[],
                              old_orders=[])
+
+@app.route('/quickbooks')
+def quickbooks_status():
+    """QuickBooks connection status page"""
+    return render_template('quickbooks_status.html')
 
 @app.route('/order_details/<int:work_order_id>')
 def order_details(work_order_id):
@@ -762,6 +767,70 @@ def api_qb_refresh():
 
     except requests.exceptions.RequestException as e:
         logger.error(f"Error triggering backend refresh: {e}")
+        return jsonify({'error': 'Cannot connect to QuickBooks backend', 'details': str(e)}), 503
+
+@app.route('/api/qb/config')
+def api_qb_config():
+    """Get QuickBooks configuration"""
+    try:
+        backend_url = os.getenv('BACKEND_URL', 'http://backend:5002')
+        response = requests.get(f'{backend_url}/api/config', timeout=5)
+
+        if response.status_code == 200:
+            return jsonify(response.json())
+        else:
+            return jsonify({'error': 'Backend not available'}), 503
+
+    except requests.exceptions.RequestException as e:
+        logger.error(f"Error getting QB config: {e}")
+        return jsonify({'error': 'Cannot connect to QuickBooks backend', 'details': str(e)}), 503
+
+@app.route('/api/qb/auth_url')
+def api_qb_auth_url():
+    """Get QuickBooks OAuth authorization URL"""
+    try:
+        backend_url = os.getenv('BACKEND_URL', 'http://backend:5002')
+        response = requests.get(f'{backend_url}/api/auth/url', timeout=5)
+
+        if response.status_code == 200:
+            return jsonify(response.json())
+        else:
+            return jsonify(response.json()), response.status_code
+
+    except requests.exceptions.RequestException as e:
+        logger.error(f"Error getting auth URL: {e}")
+        return jsonify({'error': 'Cannot connect to QuickBooks backend', 'details': str(e)}), 503
+
+@app.route('/api/qb/disconnect', methods=['POST'])
+def api_qb_disconnect():
+    """Disconnect from QuickBooks"""
+    try:
+        backend_url = os.getenv('BACKEND_URL', 'http://backend:5002')
+        response = requests.post(f'{backend_url}/api/disconnect', timeout=5)
+
+        if response.status_code == 200:
+            return jsonify(response.json())
+        else:
+            return jsonify(response.json()), response.status_code
+
+    except requests.exceptions.RequestException as e:
+        logger.error(f"Error disconnecting from QB: {e}")
+        return jsonify({'error': 'Cannot connect to QuickBooks backend', 'details': str(e)}), 503
+
+@app.route('/api/qb/test')
+def api_qb_test():
+    """Test QuickBooks connection"""
+    try:
+        backend_url = os.getenv('BACKEND_URL', 'http://backend:5002')
+        response = requests.get(f'{backend_url}/api/test', timeout=10)
+
+        if response.status_code == 200:
+            return jsonify(response.json())
+        else:
+            return jsonify(response.json()), response.status_code
+
+    except requests.exceptions.RequestException as e:
+        logger.error(f"Error testing QB connection: {e}")
         return jsonify({'error': 'Cannot connect to QuickBooks backend', 'details': str(e)}), 503
 
 if __name__ == '__main__':

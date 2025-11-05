@@ -7,7 +7,7 @@ A Python Flask-based backend service that integrates with QuickBooks Online (QBO
 This service acts as a daemon that:
 - Maintains OAuth2 authentication with QuickBooks Online
 - Automatically refreshes access tokens to prevent expiration
-- Fetches and caches customer, vendor, and product/service data hourly
+- Fetches and caches customer, vendor, product/service, and invoice data hourly
 - Provides fast search APIs for web applications
 - Runs continuously in the background
 
@@ -151,7 +151,8 @@ Get current cache status and data counts.
   "last_updated": "2025-09-20T19:47:30.642440",
   "customers_count": 25,
   "vendors_count": 12,
-  "items_count": 150
+  "items_count": 150,
+  "invoices_count": 42
 }
 ```
 
@@ -235,6 +236,12 @@ Get raw item data from cache.
 **Parameters:**
 - `limit` (optional): Maximum records to return (default: 50)
 
+#### `GET /api/data/invoices`
+Get raw invoice data from cache.
+
+**Parameters:**
+- `limit` (optional): Maximum records to return (default: 50)
+
 ### 🔐 OAuth Endpoints
 
 #### `GET /callback`
@@ -269,6 +276,7 @@ curl -X POST http://localhost:5002/api/cache/refresh
 # Get sample data
 curl "http://localhost:5002/api/data/customers?limit=5"
 curl "http://localhost:5002/api/data/items?limit=10"
+curl "http://localhost:5002/api/data/invoices?limit=10"
 ```
 
 ### PowerShell Test Commands (Windows)
@@ -302,11 +310,12 @@ python test_qb_integration.py
 
 ### Cached Data
 
-The service maintains three main data collections:
+The service maintains four main data collections:
 
 - **Customers**: Client information with names and contact details
 - **Vendors**: Supplier information with names and contact details
 - **Items**: Products and services with names, descriptions, and pricing
+- **Invoices**: Invoice data with customer references, line items, and amounts
 
 ### Search Indexes
 
@@ -418,5 +427,6 @@ python app.py
 - Database persistence for cached data
 - Advanced search with filters and sorting
 - Real-time data synchronization
-- Additional QuickBooks entities (invoices, bills, etc.)
+- Additional QuickBooks entities (bills, purchase orders, etc.)
+- Invoice search indexing
 - Metrics and monitoring dashboard

@@ -1,6 +1,7 @@
 import os
 import json
 import time
+import base64
 import threading
 import logging
 from datetime import datetime, timedelta
@@ -24,6 +25,7 @@ cached_data = {
     'customers': [],
     'vendors': [],
     'items': [],
+    'invoices': [],
     'last_updated': None
 }
 
@@ -41,18 +43,40 @@ search_indexes = {
 # QuickBooks configuration
 QB_CLIENT_ID = os.getenv('QUICKBOOKS_CLIENT_ID')
 QB_CLIENT_SECRET = os.getenv('QUICKBOOKS_CLIENT_SECRET')
-QB_SANDBOX_BASE_URL = os.getenv('QUICKBOOKS_SANDBOX_BASE_URL')
-QB_COMPANY_ID = os.getenv('QUICKBOOKS_COMPANY_ID', '1234567890')  # Use env var or fallback
+QB_SANDBOX_BASE_URL = os.getenv('QUICKBOOKS_SANDBOX_BASE_URL', 'https://sandbox-quickbooks.api.intuit.com')
+QB_COMPANY_ID = os.getenv('QUICKBOOKS_COMPANY_ID')  # Will be set during OAuth if not provided
 PRODUCTION_URI = os.getenv('PRODUCTION_URI', 'http://localhost:5002')
 QB_REDIRECT_URI = f'{PRODUCTION_URI}/callback'  # Use production URI for callback
+
+# Validate required environment variables
+def validate_env_vars():
+    """Validate that required environment variables are set"""
+    required_vars = {
+        'QUICKBOOKS_CLIENT_ID': QB_CLIENT_ID,
+        'QUICKBOOKS_CLIENT_SECRET': QB_CLIENT_SECRET,
+        'QUICKBOOKS_SANDBOX_BASE_URL': QB_SANDBOX_BASE_URL
+    }
+
+    missing_vars = [var for var, value in required_vars.items() if not value]
+
+    if missing_vars:
+        logger.warning(f"Missing environment variables: {', '.join(missing_vars)}")
+        logger.warning("QuickBooks integration may not work properly without these variables")
+    else:
+        logger.info("All required environment variables are set")
+
+    return len(missing_vars) == 0
 
 # Debug logging for environment variables
 logger.info(f"Environment variables loaded:")
 logger.info(f"QB_CLIENT_ID: {'***' + QB_CLIENT_ID[-4:] if QB_CLIENT_ID else 'None'}")
-logger.info(f"QB_COMPANY_ID: {QB_COMPANY_ID}")
+logger.info(f"QB_COMPANY_ID: {QB_COMPANY_ID or 'Will be set during OAuth'}")
 logger.info(f"QB_SANDBOX_BASE_URL: {QB_SANDBOX_BASE_URL}")
 logger.info(f"PRODUCTION_URI: {PRODUCTION_URI}")
 logger.info(f"QB_REDIRECT_URI: {QB_REDIRECT_URI}")
+
+# Validate environment variables
+validate_env_vars()
 
 # Token storage file path
 TOKEN_FILE = '/tmp/qb_tokens.json'
@@ -110,7 +134,6 @@ def refresh_access_token():
     }
 
     # Create basic auth header
-    import base64
     auth_string = f"{QB_CLIENT_ID}:{QB_CLIENT_SECRET}"
     auth_bytes = auth_string.encode('ascii')
     auth_b64 = base64.b64encode(auth_bytes).decode('ascii')
@@ -161,11 +184,17 @@ def make_qb_request(endpoint, company_id=None):
         logger.error("No access token available")
         return None
 
-    # Use provided company_id or fall back to environment variable
-    company_id = company_id or QB_COMPANY_ID
-    logger.info(f"Using QuickBooks Company ID: {company_id}")
+    # Use provided company_id, fall back to stored company_id from OAuth, then environment variable
+    company_id = company_id or tokens.get('company_id') or QB_COMPANY_ID
 
-    url = f"https://sandbox-quickbooks.api.intuit.com/v3/company/{company_id}/{endpoint}"
+    if not company_id:
+        logger.error("No company ID available. Complete OAuth flow to set company ID")
+        return None
+
+    logger.debug(f"Using QuickBooks Company ID: {company_id}")
+
+    # Use environment variable for base URL
+    url = f"{QB_SANDBOX_BASE_URL}/v3/company/{company_id}/{endpoint}"
     headers = {
         'Authorization': f'Bearer {tokens["access_token"]}',
         'Accept': 'application/json',
@@ -176,6 +205,17 @@ def make_qb_request(endpoint, company_id=None):
         response = requests.get(url, headers=headers)
         if response.status_code == 200:
             return response.json()
+        elif response.status_code == 401:
+            logger.warning("Access token expired or invalid (401). Attempting token refresh...")
+            # Try to refresh token and retry once
+            if refresh_access_token():
+                logger.info("Token refreshed successfully, retrying request...")
+                headers['Authorization'] = f'Bearer {tokens["access_token"]}'
+                response = requests.get(url, headers=headers)
+                if response.status_code == 200:
+                    return response.json()
+            logger.error("Failed to refresh token or retry request")
+            return None
         else:
             logger.error(f"QuickBooks API error: {response.status_code} - {response.text}")
             return None
@@ -244,6 +284,27 @@ def fetch_items():
             return []
     except Exception as e:
         logger.error(f"Error fetching items: {str(e)}")
+        return []
+
+def fetch_invoices():
+    """Fetch all invoices from QuickBooks"""
+    if not ensure_valid_token():
+        logger.error("No valid token available for fetching invoices")
+        return []
+
+    try:
+        # Use proper QuickBooks API query syntax
+        response = make_qb_request("query?query=SELECT * FROM Invoice MAXRESULTS 1000")
+        if response and 'QueryResponse' in response and 'Invoice' in response['QueryResponse']:
+            invoices = response['QueryResponse']['Invoice']
+            logger.info(f"Successfully fetched {len(invoices)} invoices")
+            return invoices
+        else:
+            logger.warning("No invoices found in QuickBooks response")
+            logger.debug(f"Response structure: {response}")
+            return []
+    except Exception as e:
+        logger.error(f"Error fetching invoices: {str(e)}")
         return []
 
 def build_search_indexes():
@@ -342,12 +403,13 @@ def update_cache():
     cached_data['customers'] = fetch_customers()
     cached_data['vendors'] = fetch_vendors()
     cached_data['items'] = fetch_items()
+    cached_data['invoices'] = fetch_invoices()
     cached_data['last_updated'] = datetime.now()
 
     # Build search indexes
     build_search_indexes()
 
-    logger.info(f"Cache updated. Customers: {len(cached_data['customers'])}, Vendors: {len(cached_data['vendors'])}, Items: {len(cached_data['items'])}")
+    logger.info(f"Cache updated. Customers: {len(cached_data['customers'])}, Vendors: {len(cached_data['vendors'])}, Items: {len(cached_data['items'])}, Invoices: {len(cached_data['invoices'])}")
 
 def search_index(index_name, query, limit=15):
     """Search a specific index"""
@@ -418,7 +480,8 @@ def cache_status():
         'last_updated': cached_data['last_updated'].isoformat() if cached_data['last_updated'] else None,
         'customers_count': len(cached_data['customers']),
         'vendors_count': len(cached_data['vendors']),
-        'items_count': len(cached_data['items'])
+        'items_count': len(cached_data['items']),
+        'invoices_count': len(cached_data['invoices'])
     })
 
 @app.route('/api/config', methods=['GET'])
@@ -476,6 +539,16 @@ def get_items():
         'showing': min(limit, len(cached_data['items']))
     })
 
+@app.route('/api/data/invoices', methods=['GET'])
+def get_invoices():
+    """Get all cached invoice data (for debugging)"""
+    limit = int(request.args.get('limit', 50))
+    return jsonify({
+        'invoices': cached_data['invoices'][:limit],
+        'total': len(cached_data['invoices']),
+        'showing': min(limit, len(cached_data['invoices']))
+    })
+
 @app.route('/api/health', methods=['GET'])
 def health_check():
     """Health check endpoint"""
@@ -519,7 +592,6 @@ def oauth_callback():
         }
 
         # Create basic auth header
-        import base64
         auth_string = f"{QB_CLIENT_ID}:{QB_CLIENT_SECRET}"
         auth_bytes = auth_string.encode('ascii')
         auth_b64 = base64.b64encode(auth_bytes).decode('ascii')

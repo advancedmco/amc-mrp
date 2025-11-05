@@ -476,7 +476,25 @@ def search(index_name):
 
 @app.route('/api/cache/status', methods=['GET'])
 def cache_status():
+    # Check if QuickBooks is authenticated and connected
+    is_authenticated = tokens['access_token'] is not None and tokens['refresh_token'] is not None
+    has_valid_config = QB_CLIENT_ID is not None and QB_CLIENT_SECRET is not None
+    has_data = len(cached_data['customers']) > 0 or len(cached_data['vendors']) > 0 or len(cached_data['items']) > 0
+
+    # Determine connection status
+    if not has_valid_config:
+        connection_status = 'not_configured'
+    elif not is_authenticated:
+        connection_status = 'not_authenticated'
+    elif not has_data:
+        connection_status = 'authenticated_no_data'
+    else:
+        connection_status = 'connected'
+
     return jsonify({
+        'connection_status': connection_status,
+        'is_authenticated': is_authenticated,
+        'has_valid_config': has_valid_config,
         'last_updated': cached_data['last_updated'].isoformat() if cached_data['last_updated'] else None,
         'customers_count': len(cached_data['customers']),
         'vendors_count': len(cached_data['vendors']),

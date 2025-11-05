@@ -758,16 +758,54 @@ function loadQBSyncStatus() {
             if (data.error) {
                 statusBadge.className = 'ms-2 badge bg-danger';
                 statusBadge.textContent = 'Offline';
-                lastSyncText.textContent = '';
+                lastSyncText.textContent = 'Cannot connect to backend';
             } else {
-                statusBadge.className = 'ms-2 badge bg-success';
-                statusBadge.textContent = 'Online';
+                // Check actual connection status from backend
+                const connectionStatus = data.connection_status;
 
-                if (data.last_updated) {
-                    const lastUpdate = new Date(data.last_updated);
-                    const now = new Date();
-                    const minutesAgo = Math.floor((now - lastUpdate) / 60000);
-                    lastSyncText.textContent = `Last synced ${minutesAgo} minutes ago`;
+                switch(connectionStatus) {
+                    case 'not_configured':
+                        statusBadge.className = 'ms-2 badge bg-warning';
+                        statusBadge.textContent = 'Not Configured';
+                        lastSyncText.textContent = 'QuickBooks credentials not set';
+                        break;
+
+                    case 'not_authenticated':
+                        statusBadge.className = 'ms-2 badge bg-danger';
+                        statusBadge.textContent = 'Not Connected';
+                        lastSyncText.textContent = 'QuickBooks authentication required';
+                        break;
+
+                    case 'authenticated_no_data':
+                        statusBadge.className = 'ms-2 badge bg-warning';
+                        statusBadge.textContent = 'No Data';
+                        lastSyncText.textContent = 'Authenticated but no data synced yet';
+                        break;
+
+                    case 'connected':
+                        statusBadge.className = 'ms-2 badge bg-success';
+                        statusBadge.textContent = 'Connected';
+
+                        if (data.last_updated) {
+                            const lastUpdate = new Date(data.last_updated);
+                            const now = new Date();
+                            const minutesAgo = Math.floor((now - lastUpdate) / 60000);
+
+                            if (minutesAgo < 60) {
+                                lastSyncText.textContent = `Last synced ${minutesAgo} minute${minutesAgo !== 1 ? 's' : ''} ago`;
+                            } else {
+                                const hoursAgo = Math.floor(minutesAgo / 60);
+                                lastSyncText.textContent = `Last synced ${hoursAgo} hour${hoursAgo !== 1 ? 's' : ''} ago`;
+                            }
+                        } else {
+                            lastSyncText.textContent = 'Never synced';
+                        }
+                        break;
+
+                    default:
+                        statusBadge.className = 'ms-2 badge bg-secondary';
+                        statusBadge.textContent = 'Unknown';
+                        lastSyncText.textContent = '';
                 }
             }
         })
@@ -775,6 +813,7 @@ function loadQBSyncStatus() {
             console.error('Error loading QB sync status:', error);
             document.getElementById('qbSyncStatus').className = 'ms-2 badge bg-danger';
             document.getElementById('qbSyncStatus').textContent = 'Error';
+            document.getElementById('qbLastSync').textContent = 'Failed to connect';
         });
 }
 

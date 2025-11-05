@@ -14,6 +14,8 @@ from datetime import datetime, date, timedelta
 import mysql.connector
 from mysql.connector import Error
 import logging
+import requests
+from collections import defaultdict
 
 # Add WORKING directory to path to import generators
 sys.path.append(os.path.join(os.path.dirname(__file__), 'generators'))
@@ -247,24 +249,281 @@ class MRPDashboard:
         try:
             conn = self.get_db_connection()
             cursor = conn.cursor()
-            
+
             query = """
-            UPDATE WorkOrders 
-            SET PaymentStatus = %s, UpdatedDate = CURRENT_TIMESTAMP 
+            UPDATE WorkOrders
+            SET PaymentStatus = %s, UpdatedDate = CURRENT_TIMESTAMP
             WHERE WorkOrderID = %s
             """
-            
+
             cursor.execute(query, (payment_status, work_order_id))
             conn.commit()
-            
+
             cursor.close()
             conn.close()
-            
+
             return True
-            
+
         except Error as e:
             logger.error(f"Failed to update payment status: {e}")
             return False
+
+    def get_dashboard_metrics(self):
+        """Get key performance metrics for dashboard"""
+        try:
+            conn = self.get_db_connection()
+            cursor = conn.cursor(dictionary=True)
+
+            metrics = {}
+
+            # Active orders count
+            cursor.execute("""
+                SELECT COUNT(*) as count
+                FROM WorkOrders
+                WHERE Status NOT IN ('Completed', 'Shipped')
+            """)
+            metrics['active_orders'] = cursor.fetchone()['count']
+
+            # Orders due this week
+            cursor.execute("""
+                SELECT COUNT(*) as count
+                FROM WorkOrders
+                WHERE Status NOT IN ('Completed', 'Shipped')
+                AND DueDate BETWEEN CURDATE() AND DATE_ADD(CURDATE(), INTERVAL 7 DAY)
+            """)
+            metrics['due_this_week'] = cursor.fetchone()['count']
+
+            # Overdue orders
+            cursor.execute("""
+                SELECT COUNT(*) as count
+                FROM WorkOrders
+                WHERE Status NOT IN ('Completed', 'Shipped')
+                AND DueDate < CURDATE()
+            """)
+            metrics['overdue_orders'] = cursor.fetchone()['count']
+
+            # Pending payment count
+            cursor.execute("""
+                SELECT COUNT(*) as count
+                FROM WorkOrders
+                WHERE PaymentStatus = 'Not Received'
+                AND Status IN ('Completed', 'Shipped')
+            """)
+            metrics['pending_payments'] = cursor.fetchone()['count']
+
+            # Total revenue (estimated from completed orders)
+            cursor.execute("""
+                SELECT
+                    SUM(bp.ActualCost) as total_revenue
+                FROM WorkOrders wo
+                JOIN BOM b ON wo.WorkOrderID = b.WorkOrderID
+                JOIN BOMProcesses bp ON b.BOMID = bp.BOMID
+                WHERE wo.Status IN ('Completed', 'Shipped')
+                AND wo.CompletionDate >= DATE_SUB(NOW(), INTERVAL 30 DAY)
+            """)
+            result = cursor.fetchone()
+            metrics['monthly_revenue'] = float(result['total_revenue']) if result['total_revenue'] else 0.0
+
+            # Orders completed this month
+            cursor.execute("""
+                SELECT COUNT(*) as count
+                FROM WorkOrders
+                WHERE Status IN ('Completed', 'Shipped')
+                AND CompletionDate >= DATE_SUB(NOW(), INTERVAL 30 DAY)
+            """)
+            metrics['completed_this_month'] = cursor.fetchone()['count']
+
+            # Average completion time (days)
+            cursor.execute("""
+                SELECT AVG(DATEDIFF(CompletionDate, StartDate)) as avg_days
+                FROM WorkOrders
+                WHERE Status IN ('Completed', 'Shipped')
+                AND CompletionDate >= DATE_SUB(NOW(), INTERVAL 90 DAY)
+                AND StartDate IS NOT NULL
+            """)
+            result = cursor.fetchone()
+            metrics['avg_completion_days'] = float(result['avg_days']) if result['avg_days'] else 0.0
+
+            cursor.close()
+            conn.close()
+
+            return metrics
+
+        except Error as e:
+            logger.error(f"Failed to get dashboard metrics: {e}")
+            return {}
+
+    def get_chart_data(self):
+        """Get aggregated data for charts"""
+        try:
+            conn = self.get_db_connection()
+            cursor = conn.cursor(dictionary=True)
+
+            chart_data = {}
+
+            # Orders by status
+            cursor.execute("""
+                SELECT Status, COUNT(*) as count
+                FROM WorkOrders
+                WHERE Status NOT IN ('Completed', 'Shipped')
+                GROUP BY Status
+                ORDER BY count DESC
+            """)
+            chart_data['orders_by_status'] = cursor.fetchall()
+
+            # Orders by priority
+            cursor.execute("""
+                SELECT Priority, COUNT(*) as count
+                FROM WorkOrders
+                WHERE Status NOT IN ('Completed', 'Shipped')
+                GROUP BY Priority
+                ORDER BY FIELD(Priority, 'Urgent', 'High', 'Normal', 'Low')
+            """)
+            chart_data['orders_by_priority'] = cursor.fetchall()
+
+            # Payment status distribution
+            cursor.execute("""
+                SELECT PaymentStatus, COUNT(*) as count
+                FROM WorkOrders
+                WHERE Status IN ('Completed', 'Shipped')
+                GROUP BY PaymentStatus
+            """)
+            chart_data['payment_status'] = cursor.fetchall()
+
+            # Orders timeline (last 30 days)
+            cursor.execute("""
+                SELECT
+                    DATE(CompletionDate) as date,
+                    COUNT(*) as count
+                FROM WorkOrders
+                WHERE CompletionDate >= DATE_SUB(NOW(), INTERVAL 30 DAY)
+                GROUP BY DATE(CompletionDate)
+                ORDER BY date
+            """)
+            chart_data['completion_timeline'] = cursor.fetchall()
+
+            # Top customers by order count
+            cursor.execute("""
+                SELECT
+                    c.CustomerName,
+                    COUNT(wo.WorkOrderID) as order_count
+                FROM WorkOrders wo
+                JOIN Customers c ON wo.CustomerID = c.CustomerID
+                WHERE wo.CreatedDate >= DATE_SUB(NOW(), INTERVAL 90 DAY)
+                GROUP BY c.CustomerID, c.CustomerName
+                ORDER BY order_count DESC
+                LIMIT 10
+            """)
+            chart_data['top_customers'] = cursor.fetchall()
+
+            cursor.close()
+            conn.close()
+
+            return chart_data
+
+        except Error as e:
+            logger.error(f"Failed to get chart data: {e}")
+            return {}
+
+    def get_filtered_orders(self, status=None, priority=None, search=None, sort_by='CreatedDate', sort_order='DESC', limit=100, offset=0):
+        """Get orders with filtering, sorting, and pagination"""
+        try:
+            conn = self.get_db_connection()
+            cursor = conn.cursor(dictionary=True)
+
+            # Build query with filters
+            query = """
+            SELECT
+                wo.WorkOrderID,
+                wo.WorkOrderNumber,
+                wo.CustomerPONumber,
+                wo.QuantityOrdered,
+                wo.QuantityCompleted,
+                wo.StartDate,
+                wo.DueDate,
+                wo.Status,
+                wo.Priority,
+                wo.PaymentStatus,
+                c.CustomerName,
+                p.PartNumber,
+                p.PartName,
+                p.Material,
+                DATEDIFF(wo.DueDate, CURDATE()) as DaysUntilDue
+            FROM WorkOrders wo
+            JOIN Customers c ON wo.CustomerID = c.CustomerID
+            JOIN Parts p ON wo.PartID = p.PartID
+            WHERE 1=1
+            """
+
+            params = []
+
+            if status:
+                query += " AND wo.Status = %s"
+                params.append(status)
+
+            if priority:
+                query += " AND wo.Priority = %s"
+                params.append(priority)
+
+            if search:
+                query += """ AND (
+                    wo.WorkOrderNumber LIKE %s OR
+                    wo.CustomerPONumber LIKE %s OR
+                    c.CustomerName LIKE %s OR
+                    p.PartNumber LIKE %s OR
+                    p.PartName LIKE %s
+                )"""
+                search_param = f"%{search}%"
+                params.extend([search_param] * 5)
+
+            # Add sorting
+            allowed_sort_fields = ['WorkOrderNumber', 'CustomerName', 'DueDate', 'Status', 'Priority', 'CreatedDate']
+            if sort_by in allowed_sort_fields:
+                sort_order = 'ASC' if sort_order.upper() == 'ASC' else 'DESC'
+                query += f" ORDER BY wo.{sort_by} {sort_order}"
+            else:
+                query += " ORDER BY wo.CreatedDate DESC"
+
+            # Add pagination
+            query += " LIMIT %s OFFSET %s"
+            params.extend([limit, offset])
+
+            cursor.execute(query, params)
+            orders = cursor.fetchall()
+
+            # Get total count
+            count_query = """
+            SELECT COUNT(*) as total
+            FROM WorkOrders wo
+            JOIN Customers c ON wo.CustomerID = c.CustomerID
+            JOIN Parts p ON wo.PartID = p.PartID
+            WHERE 1=1
+            """
+
+            if status:
+                count_query += " AND wo.Status = %s"
+            if priority:
+                count_query += " AND wo.Priority = %s"
+            if search:
+                count_query += """ AND (
+                    wo.WorkOrderNumber LIKE %s OR
+                    wo.CustomerPONumber LIKE %s OR
+                    c.CustomerName LIKE %s OR
+                    p.PartNumber LIKE %s OR
+                    p.PartName LIKE %s
+                )"""
+
+            cursor.execute(count_query, params[:-2])  # Exclude limit/offset
+            total = cursor.fetchone()['total']
+
+            cursor.close()
+            conn.close()
+
+            return {'orders': orders, 'total': total}
+
+        except Error as e:
+            logger.error(f"Failed to get filtered orders: {e}")
+            return {'orders': [], 'total': 0}
 
 # Initialize dashboard
 dashboard = MRPDashboard()
@@ -405,15 +664,105 @@ def download_pdf(filename):
         # Security check - only allow files from output directory
         output_dir = os.path.join(os.path.dirname(__file__), '..', 'output')
         file_path = os.path.join(output_dir, filename)
-        
+
         if os.path.exists(file_path) and file_path.startswith(os.path.abspath(output_dir)):
             return send_file(file_path, as_attachment=True)
         else:
             return jsonify({'error': 'File not found'}), 404
-            
+
     except Exception as e:
         logger.error(f"File download failed: {e}")
         return jsonify({'error': str(e)}), 500
+
+@app.route('/api/dashboard/metrics')
+def api_dashboard_metrics():
+    """API endpoint for dashboard metrics"""
+    try:
+        metrics = dashboard.get_dashboard_metrics()
+        return jsonify(metrics)
+    except Exception as e:
+        logger.error(f"Error getting dashboard metrics: {e}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/dashboard/charts')
+def api_dashboard_charts():
+    """API endpoint for chart data"""
+    try:
+        chart_data = dashboard.get_chart_data()
+        # Convert date objects to strings for JSON serialization
+        if 'completion_timeline' in chart_data:
+            for item in chart_data['completion_timeline']:
+                if 'date' in item and isinstance(item['date'], (date, datetime)):
+                    item['date'] = item['date'].strftime('%Y-%m-%d')
+        return jsonify(chart_data)
+    except Exception as e:
+        logger.error(f"Error getting chart data: {e}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/orders')
+def api_orders():
+    """API endpoint for orders with filtering and pagination"""
+    try:
+        status = request.args.get('status')
+        priority = request.args.get('priority')
+        search = request.args.get('search')
+        sort_by = request.args.get('sort_by', 'CreatedDate')
+        sort_order = request.args.get('sort_order', 'DESC')
+        limit = int(request.args.get('limit', 100))
+        offset = int(request.args.get('offset', 0))
+
+        result = dashboard.get_filtered_orders(
+            status=status,
+            priority=priority,
+            search=search,
+            sort_by=sort_by,
+            sort_order=sort_order,
+            limit=limit,
+            offset=offset
+        )
+
+        # Convert date objects to strings
+        for order in result['orders']:
+            for key, value in order.items():
+                if isinstance(value, (date, datetime)):
+                    order[key] = value.strftime('%Y-%m-%d') if isinstance(value, date) else value.strftime('%Y-%m-%d %H:%M:%S')
+
+        return jsonify(result)
+    except Exception as e:
+        logger.error(f"Error getting orders: {e}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/qb/sync_status')
+def api_qb_sync_status():
+    """Get QuickBooks sync status from backend"""
+    try:
+        backend_url = os.getenv('BACKEND_URL', 'http://backend:5002')
+        response = requests.get(f'{backend_url}/api/cache/status', timeout=5)
+
+        if response.status_code == 200:
+            return jsonify(response.json())
+        else:
+            return jsonify({'error': 'Backend not available'}), 503
+
+    except requests.exceptions.RequestException as e:
+        logger.error(f"Error connecting to backend: {e}")
+        return jsonify({'error': 'Cannot connect to QuickBooks backend', 'details': str(e)}), 503
+
+@app.route('/api/qb/refresh', methods=['POST'])
+def api_qb_refresh():
+    """Trigger QuickBooks cache refresh"""
+    try:
+        backend_url = os.getenv('BACKEND_URL', 'http://backend:5002')
+        response = requests.post(f'{backend_url}/api/cache/refresh', timeout=30)
+
+        if response.status_code == 200:
+            return jsonify(response.json())
+        else:
+            return jsonify({'error': 'Backend refresh failed'}), 500
+
+    except requests.exceptions.RequestException as e:
+        logger.error(f"Error triggering backend refresh: {e}")
+        return jsonify({'error': 'Cannot connect to QuickBooks backend', 'details': str(e)}), 503
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, debug=True)

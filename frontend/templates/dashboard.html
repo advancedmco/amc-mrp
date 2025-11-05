@@ -96,9 +96,14 @@
                         <span id="qbSyncStatus" class="ms-2 badge bg-secondary">Loading...</span>
                         <span id="qbLastSync" class="ms-2 text-muted small"></span>
                     </div>
-                    <button class="btn btn-sm btn-outline-primary" onclick="refreshQBCache()">
-                        <i class="bi bi-arrow-repeat"></i> Sync Now
-                    </button>
+                    <div>
+                        <a href="/quickbooks" class="btn btn-sm btn-outline-secondary me-2">
+                            <i class="bi bi-gear"></i> Configure
+                        </a>
+                        <button class="btn btn-sm btn-outline-primary" onclick="refreshQBCache()">
+                            <i class="bi bi-arrow-repeat"></i> Sync Now
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>

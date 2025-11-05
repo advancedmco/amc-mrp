@@ -70,9 +70,9 @@ Create a `.env` file in the project root with:
 
 ```env
 # QuickBooks API Credentials
-QUICKBOOKS_CLIENT_ID=your_client_id_here
-QUICKBOOKS_CLIENT_SECRET=your_client_secret_here
-QUICKBOOKS_SANDBOX_BASE_URL=https://sandbox-quickbooks.api.intuit.com
+QB_CLIENT_ID=your_client_id_here
+QB_CLIENT_SECRET=your_client_secret_here
+QB_SANDBOX_BASE_URL=https://sandbox-quickbooks.api.intuit.com
 
 # Database Connection (if needed)
 DB_HOST=mysql

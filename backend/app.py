@@ -41,10 +41,10 @@ search_indexes = {
 }
 
 # QuickBooks configuration
-QB_CLIENT_ID = os.getenv('QUICKBOOKS_CLIENT_ID')
-QB_CLIENT_SECRET = os.getenv('QUICKBOOKS_CLIENT_SECRET')
-QB_SANDBOX_BASE_URL = os.getenv('QUICKBOOKS_SANDBOX_BASE_URL', 'https://sandbox-quickbooks.api.intuit.com')
-QB_COMPANY_ID = os.getenv('QUICKBOOKS_COMPANY_ID')  # Will be set during OAuth if not provided
+QB_CLIENT_ID = os.getenv('QB_CLIENT_ID')
+QB_CLIENT_SECRET = os.getenv('QB_CLIENT_SECRET')
+QB_SANDBOX_BASE_URL = os.getenv('QB_SANDBOX_BASE_URL', 'https://sandbox-quickbooks.api.intuit.com')
+QB_COMPANY_ID = os.getenv('QB_COMPANY_ID')  # Will be set during OAuth if not provided
 QB_ENVIRONMENT = os.getenv('QB_ENVIRONMENT', 'sandbox')
 PRODUCTION_URI = os.getenv('PRODUCTION_URI', 'http://localhost:5002')
 # Use QB_REDIRECT_URI if provided, otherwise construct from PRODUCTION_URI
@@ -54,9 +54,9 @@ QB_REDIRECT_URI = os.getenv('QB_REDIRECT_URI', f'{PRODUCTION_URI}/callback')
 def validate_env_vars():
     """Validate that required environment variables are set"""
     required_vars = {
-        'QUICKBOOKS_CLIENT_ID': QB_CLIENT_ID,
-        'QUICKBOOKS_CLIENT_SECRET': QB_CLIENT_SECRET,
-        'QUICKBOOKS_SANDBOX_BASE_URL': QB_SANDBOX_BASE_URL
+        'QB_CLIENT_ID': QB_CLIENT_ID,
+        'QB_CLIENT_SECRET': QB_CLIENT_SECRET,
+        'QB_SANDBOX_BASE_URL': QB_SANDBOX_BASE_URL
     }
 
     missing_vars = [var for var, value in required_vars.items() if not value]
@@ -523,7 +523,7 @@ def get_auth_url():
     """Generate QuickBooks OAuth authorization URL"""
     if not QB_CLIENT_ID or not QB_CLIENT_SECRET:
         return jsonify({
-            'error': 'QuickBooks credentials not configured. Please set QUICKBOOKS_CLIENT_ID and QUICKBOOKS_CLIENT_SECRET in your .env file'
+            'error': 'QuickBooks credentials not configured. Please set QB_CLIENT_ID and QB_CLIENT_SECRET in your .env file'
         }), 400
 
     # Generate state parameter for security (optional but recommended)

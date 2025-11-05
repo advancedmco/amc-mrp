@@ -112,10 +112,10 @@ DB_USER=amc
 DB_PASSWORD=Workbench.lavender.chrome
 
 # QuickBooks
-QUICKBOOKS_CLIENT_ID=your_client_id
-QUICKBOOKS_CLIENT_SECRET=your_client_secret
-QUICKBOOKS_SANDBOX_BASE_URL=https://sandbox-quickbooks.api.intuit.com
-QUICKBOOKS_COMPANY_ID=your_company_id
+QB_CLIENT_ID=your_client_id
+QB_CLIENT_SECRET=your_client_secret
+QB_SANDBOX_BASE_URL=https://sandbox-quickbooks.api.intuit.com
+QB_COMPANY_ID=your_company_id
 
 # Flask
 FLASK_SECRET_KEY=your_secret_key

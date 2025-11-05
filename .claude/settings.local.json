@@ -2,7 +2,9 @@
   "permissions": {
     "allow": [
       "Bash(docker compose build:*)",
-      "Bash(docker compose:*)"
+      "Bash(docker compose:*)",
+      "Bash(docker inspect:*)",
+      "Bash(python3:*)"
     ],
     "deny": [],
     "ask": []

@@ -20,6 +20,6 @@ RUN mkdir -p /var/log/mysql && \
 EXPOSE 3306
 
 # Health check - wait longer for initialization to complete
-# Using mysqladmin ping is more reliable than trying to connect to a specific database
+# Using mariadb-admin ping is more reliable than trying to connect to a specific database
 HEALTHCHECK --interval=5s --timeout=3s --retries=20 --start-period=60s \
-    CMD mysqladmin ping -h localhost -u root -p${MYSQL_ROOT_PASSWORD} --silent || exit 1
+    CMD mariadb-admin ping -h localhost -u root -p${MYSQL_ROOT_PASSWORD} --silent || exit 1

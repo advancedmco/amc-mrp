@@ -12,7 +12,7 @@ services:
     networks:
       - mrp-network
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-ptoor", "--silent"]
+      test: ["CMD", "mariadb-admin", "ping", "-h", "localhost", "-u", "root", "-ptoor", "--silent"]
       interval: 5s
       timeout: 3s
       retries: 20

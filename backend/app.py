@@ -10,6 +10,7 @@ from dotenv import load_dotenv
 from apscheduler.schedulers.background import BackgroundScheduler
 # Using direct API calls instead of quickbooks-python library due to compatibility issues
 import requests
+from requests.exceptions import Timeout, ConnectionError, RequestException
 
 # Load environment variables
 load_dotenv()
@@ -19,6 +20,26 @@ app = Flask(__name__)
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+# Timeout and retry configuration
+QB_API_TIMEOUT = int(os.getenv('QB_API_TIMEOUT', '30'))  # Default 30 seconds for QB API calls
+QB_AUTH_TIMEOUT = int(os.getenv('QB_AUTH_TIMEOUT', '30'))  # Default 30 seconds for OAuth calls
+QB_MAX_RETRIES = int(os.getenv('QB_MAX_RETRIES', '3'))  # Maximum number of retry attempts
+QB_RETRY_BACKOFF_FACTOR = float(os.getenv('QB_RETRY_BACKOFF_FACTOR', '2.0'))  # Exponential backoff multiplier
+QB_INITIAL_RETRY_DELAY = float(os.getenv('QB_INITIAL_RETRY_DELAY', '1.0'))  # Initial retry delay in seconds
+
+# Circuit breaker configuration
+CIRCUIT_BREAKER_THRESHOLD = int(os.getenv('CIRCUIT_BREAKER_THRESHOLD', '5'))  # Failures before opening circuit
+CIRCUIT_BREAKER_TIMEOUT = int(os.getenv('CIRCUIT_BREAKER_TIMEOUT', '60'))  # Seconds before attempting reset
+
+# Circuit breaker state
+circuit_breaker = {
+    'failures': 0,
+    'last_failure_time': None,
+    'state': 'closed'  # closed, open, half-open
+}
+
+logger.info(f"Timeout configuration: API={QB_API_TIMEOUT}s, Auth={QB_AUTH_TIMEOUT}s, Max Retries={QB_MAX_RETRIES}")
 
 # Global variables for caching
 cached_data = {
@@ -124,6 +145,111 @@ def save_tokens():
 # Load tokens on startup
 load_tokens()
 
+def check_circuit_breaker():
+    """Check circuit breaker state and update if needed"""
+    global circuit_breaker
+
+    if circuit_breaker['state'] == 'open':
+        # Check if timeout has passed
+        if circuit_breaker['last_failure_time']:
+            time_since_failure = (datetime.now() - circuit_breaker['last_failure_time']).total_seconds()
+            if time_since_failure >= CIRCUIT_BREAKER_TIMEOUT:
+                logger.info("Circuit breaker timeout expired, attempting reset (half-open state)")
+                circuit_breaker['state'] = 'half-open'
+                return True
+        logger.warning("Circuit breaker is OPEN - rejecting requests to protect system")
+        return False
+
+    return True
+
+def record_circuit_breaker_success():
+    """Record a successful API call"""
+    global circuit_breaker
+    if circuit_breaker['state'] == 'half-open':
+        logger.info("Circuit breaker reset - service recovered")
+    circuit_breaker['failures'] = 0
+    circuit_breaker['state'] = 'closed'
+
+def record_circuit_breaker_failure():
+    """Record a failed API call"""
+    global circuit_breaker
+    circuit_breaker['failures'] += 1
+    circuit_breaker['last_failure_time'] = datetime.now()
+
+    if circuit_breaker['failures'] >= CIRCUIT_BREAKER_THRESHOLD:
+        if circuit_breaker['state'] != 'open':
+            logger.error(f"Circuit breaker OPENED after {circuit_breaker['failures']} failures")
+        circuit_breaker['state'] = 'open'
+
+def retry_with_backoff(func, *args, max_retries=None, **kwargs):
+    """
+    Retry a function with exponential backoff
+
+    Args:
+        func: Function to retry
+        *args: Positional arguments for func
+        max_retries: Maximum retry attempts (default: QB_MAX_RETRIES)
+        **kwargs: Keyword arguments for func
+
+    Returns:
+        Result of func or None on failure
+    """
+    if max_retries is None:
+        max_retries = QB_MAX_RETRIES
+
+    last_exception = None
+
+    for attempt in range(max_retries):
+        try:
+            result = func(*args, **kwargs)
+            if result is not None:
+                return result
+        except (Timeout, ConnectionError) as e:
+            last_exception = e
+            if attempt < max_retries - 1:
+                delay = QB_INITIAL_RETRY_DELAY * (QB_RETRY_BACKOFF_FACTOR ** attempt)
+                logger.warning(f"Attempt {attempt + 1}/{max_retries} failed: {str(e)}. Retrying in {delay:.1f}s...")
+                time.sleep(delay)
+            else:
+                logger.error(f"All {max_retries} attempts failed: {str(e)}")
+        except RequestException as e:
+            # For other request exceptions, don't retry
+            logger.error(f"Request exception (not retrying): {str(e)}")
+            last_exception = e
+            break
+        except Exception as e:
+            # For unexpected exceptions, don't retry
+            logger.error(f"Unexpected exception (not retrying): {str(e)}")
+            last_exception = e
+            break
+
+    if last_exception:
+        logger.error(f"Operation failed after retries: {str(last_exception)}")
+    return None
+
+def categorize_error(status_code, response_text=""):
+    """
+    Categorize HTTP errors for better handling
+
+    Returns: (error_type, error_message, is_retryable)
+    """
+    if status_code == 400:
+        return ("bad_request", "Invalid request to QuickBooks API", False)
+    elif status_code == 401:
+        return ("unauthorized", "Authentication token expired or invalid", True)
+    elif status_code == 403:
+        return ("forbidden", "Access forbidden - check permissions", False)
+    elif status_code == 404:
+        return ("not_found", "Resource not found in QuickBooks", False)
+    elif status_code == 429:
+        return ("rate_limited", "QuickBooks API rate limit exceeded", True)
+    elif status_code == 500:
+        return ("server_error", "QuickBooks server error", True)
+    elif status_code == 503:
+        return ("service_unavailable", "QuickBooks service temporarily unavailable", True)
+    else:
+        return ("unknown", f"HTTP {status_code}: {response_text[:100]}", False)
+
 def refresh_access_token():
     """Refresh the access token using refresh token"""
     if not tokens['refresh_token']:
@@ -150,7 +276,8 @@ def refresh_access_token():
         response = requests.post(
             'https://oauth.platform.intuit.com/oauth2/v1/tokens/bearer',
             data=data,
-            headers=headers
+            headers=headers,
+            timeout=QB_AUTH_TIMEOUT
         )
 
         if response.status_code == 200:
@@ -162,10 +289,21 @@ def refresh_access_token():
             logger.info("Access token refreshed successfully")
             return True
         else:
-            logger.error(f"Failed to refresh token: {response.text}")
+            error_type, error_msg, is_retryable = categorize_error(response.status_code, response.text)
+            logger.error(f"Failed to refresh token ({error_type}): {error_msg}")
+            logger.debug(f"Response: {response.text}")
             return False
+    except Timeout:
+        logger.error(f"Token refresh timeout after {QB_AUTH_TIMEOUT}s")
+        return False
+    except ConnectionError as e:
+        logger.error(f"Connection error during token refresh: {str(e)}")
+        return False
+    except RequestException as e:
+        logger.error(f"Request error during token refresh: {str(e)}")
+        return False
     except Exception as e:
-        logger.error(f"Error refreshing token: {str(e)}")
+        logger.error(f"Unexpected error refreshing token: {str(e)}")
         return False
 
 def is_token_expired():
@@ -180,8 +318,23 @@ def ensure_valid_token():
         return refresh_access_token()
     return True
 
-def make_qb_request(endpoint, company_id=None):
-    """Make a request to QuickBooks API"""
+def make_qb_request(endpoint, company_id=None, max_retries=None):
+    """
+    Make a request to QuickBooks API with timeout, retry logic, and circuit breaker
+
+    Args:
+        endpoint: API endpoint to call
+        company_id: QuickBooks company ID (optional, will use stored value if not provided)
+        max_retries: Maximum retry attempts (default: QB_MAX_RETRIES)
+
+    Returns:
+        JSON response or None on failure
+    """
+    # Check circuit breaker
+    if not check_circuit_breaker():
+        logger.error("Circuit breaker is OPEN - request rejected")
+        return None
+
     if not tokens['access_token']:
         logger.error("No access token available")
         return None
@@ -203,27 +356,115 @@ def make_qb_request(endpoint, company_id=None):
         'Content-Type': 'application/json'
     }
 
-    try:
-        response = requests.get(url, headers=headers)
-        if response.status_code == 200:
-            return response.json()
-        elif response.status_code == 401:
-            logger.warning("Access token expired or invalid (401). Attempting token refresh...")
-            # Try to refresh token and retry once
-            if refresh_access_token():
-                logger.info("Token refreshed successfully, retrying request...")
-                headers['Authorization'] = f'Bearer {tokens["access_token"]}'
-                response = requests.get(url, headers=headers)
-                if response.status_code == 200:
-                    return response.json()
-            logger.error("Failed to refresh token or retry request")
+    if max_retries is None:
+        max_retries = QB_MAX_RETRIES
+
+    last_error = None
+
+    for attempt in range(max_retries):
+        try:
+            response = requests.get(url, headers=headers, timeout=QB_API_TIMEOUT)
+
+            if response.status_code == 200:
+                # Success - record it for circuit breaker
+                record_circuit_breaker_success()
+                return response.json()
+
+            elif response.status_code == 401:
+                # Token expired - try to refresh and retry
+                logger.warning("Access token expired or invalid (401). Attempting token refresh...")
+                if refresh_access_token():
+                    logger.info("Token refreshed successfully, retrying request...")
+                    headers['Authorization'] = f'Bearer {tokens["access_token"]}'
+                    response = requests.get(url, headers=headers, timeout=QB_API_TIMEOUT)
+                    if response.status_code == 200:
+                        record_circuit_breaker_success()
+                        return response.json()
+
+                error_type, error_msg, is_retryable = categorize_error(response.status_code, response.text)
+                logger.error(f"QuickBooks API error after token refresh ({error_type}): {error_msg}")
+                record_circuit_breaker_failure()
+                return None
+
+            elif response.status_code == 429:
+                # Rate limited - retry with exponential backoff
+                error_type, error_msg, is_retryable = categorize_error(response.status_code, response.text)
+                logger.warning(f"QuickBooks API rate limited (429). Attempt {attempt + 1}/{max_retries}")
+
+                if attempt < max_retries - 1:
+                    delay = QB_INITIAL_RETRY_DELAY * (QB_RETRY_BACKOFF_FACTOR ** attempt)
+                    logger.info(f"Waiting {delay:.1f}s before retry due to rate limiting...")
+                    time.sleep(delay)
+                    continue
+                else:
+                    logger.error(f"Rate limit exceeded after {max_retries} attempts")
+                    record_circuit_breaker_failure()
+                    return None
+
+            elif response.status_code >= 500:
+                # Server error - retry with exponential backoff
+                error_type, error_msg, is_retryable = categorize_error(response.status_code, response.text)
+                logger.warning(f"QuickBooks server error ({error_type}). Attempt {attempt + 1}/{max_retries}")
+
+                if attempt < max_retries - 1:
+                    delay = QB_INITIAL_RETRY_DELAY * (QB_RETRY_BACKOFF_FACTOR ** attempt)
+                    logger.info(f"Retrying in {delay:.1f}s due to server error...")
+                    time.sleep(delay)
+                    continue
+                else:
+                    logger.error(f"Server error persisted after {max_retries} attempts: {error_msg}")
+                    record_circuit_breaker_failure()
+                    return None
+
+            else:
+                # Other errors - don't retry
+                error_type, error_msg, is_retryable = categorize_error(response.status_code, response.text)
+                logger.error(f"QuickBooks API error ({error_type}): {error_msg}")
+                logger.debug(f"Response: {response.text[:500]}")
+                record_circuit_breaker_failure()
+                return None
+
+        except Timeout:
+            last_error = f"Request timeout after {QB_API_TIMEOUT}s"
+            logger.warning(f"{last_error}. Attempt {attempt + 1}/{max_retries}")
+
+            if attempt < max_retries - 1:
+                delay = QB_INITIAL_RETRY_DELAY * (QB_RETRY_BACKOFF_FACTOR ** attempt)
+                logger.info(f"Retrying in {delay:.1f}s...")
+                time.sleep(delay)
+                continue
+            else:
+                logger.error(f"Request failed after {max_retries} timeout attempts")
+                record_circuit_breaker_failure()
+                return None
+
+        except ConnectionError as e:
+            last_error = f"Connection error: {str(e)}"
+            logger.warning(f"{last_error}. Attempt {attempt + 1}/{max_retries}")
+
+            if attempt < max_retries - 1:
+                delay = QB_INITIAL_RETRY_DELAY * (QB_RETRY_BACKOFF_FACTOR ** attempt)
+                logger.info(f"Retrying in {delay:.1f}s...")
+                time.sleep(delay)
+                continue
+            else:
+                logger.error(f"Connection failed after {max_retries} attempts")
+                record_circuit_breaker_failure()
+                return None
+
+        except RequestException as e:
+            logger.error(f"Request exception: {str(e)}")
+            record_circuit_breaker_failure()
             return None
-        else:
-            logger.error(f"QuickBooks API error: {response.status_code} - {response.text}")
+
+        except Exception as e:
+            logger.error(f"Unexpected error making QuickBooks request: {str(e)}")
+            record_circuit_breaker_failure()
             return None
-    except Exception as e:
-        logger.error(f"Error making QuickBooks request: {str(e)}")
-        return None
+
+    # Should not reach here, but just in case
+    logger.error(f"Request failed after all retry attempts: {last_error}")
+    return None
 
 def fetch_customers():
     """Fetch all customers from QuickBooks"""
@@ -694,7 +935,36 @@ def health_check():
         'timestamp': datetime.now().isoformat(),
         'version': '1.0.0',
         'authenticated': tokens['access_token'] is not None,
-        'cache_age_minutes': (datetime.now() - cached_data['last_updated']).total_seconds() / 60 if cached_data['last_updated'] else None
+        'cache_age_minutes': (datetime.now() - cached_data['last_updated']).total_seconds() / 60 if cached_data['last_updated'] else None,
+        'circuit_breaker': circuit_breaker['state'],
+        'circuit_breaker_failures': circuit_breaker['failures']
+    })
+
+@app.route('/api/circuit-breaker/status', methods=['GET'])
+def circuit_breaker_status():
+    """Get circuit breaker status"""
+    return jsonify({
+        'state': circuit_breaker['state'],
+        'failures': circuit_breaker['failures'],
+        'last_failure_time': circuit_breaker['last_failure_time'].isoformat() if circuit_breaker['last_failure_time'] else None,
+        'threshold': CIRCUIT_BREAKER_THRESHOLD,
+        'timeout_seconds': CIRCUIT_BREAKER_TIMEOUT
+    })
+
+@app.route('/api/circuit-breaker/reset', methods=['POST'])
+def circuit_breaker_reset():
+    """Manually reset circuit breaker"""
+    global circuit_breaker
+    circuit_breaker = {
+        'failures': 0,
+        'last_failure_time': None,
+        'state': 'closed'
+    }
+    logger.info("Circuit breaker manually reset")
+    return jsonify({
+        'success': True,
+        'message': 'Circuit breaker has been reset',
+        'state': circuit_breaker['state']
     })
 
 # OAuth callback route (for initial setup)

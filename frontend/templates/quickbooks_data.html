@@ -1,0 +1,485 @@
+{% extends "base.html" %}
+
+{% block title %}QuickBooks Data Viewer - AMC MRP{% endblock %}
+
+{% block extra_css %}
+<style>
+    .json-viewer {
+        background-color: #1e1e1e;
+        color: #d4d4d4;
+        padding: 1rem;
+        border-radius: 0.375rem;
+        overflow-x: auto;
+        font-family: 'Courier New', Courier, monospace;
+        font-size: 0.875rem;
+        line-height: 1.5;
+        max-height: 600px;
+        overflow-y: auto;
+    }
+
+    .json-key {
+        color: #9cdcfe;
+    }
+
+    .json-string {
+        color: #ce9178;
+    }
+
+    .json-number {
+        color: #b5cea8;
+    }
+
+    .json-boolean {
+        color: #569cd6;
+    }
+
+    .json-null {
+        color: #569cd6;
+    }
+
+    .data-item {
+        background-color: #fff;
+        border: 1px solid #dee2e6;
+        border-radius: 0.375rem;
+        padding: 1rem;
+        margin-bottom: 1rem;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+
+    .data-item:hover {
+        border-color: var(--amc-secondary);
+        box-shadow: 0 2px 8px rgba(52, 152, 219, 0.2);
+    }
+
+    .data-item.expanded {
+        border-color: var(--amc-secondary);
+    }
+
+    .data-item-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        font-weight: 600;
+    }
+
+    .data-item-body {
+        display: none;
+        margin-top: 1rem;
+        padding-top: 1rem;
+        border-top: 1px solid #dee2e6;
+    }
+
+    .data-item.expanded .data-item-body {
+        display: block;
+    }
+
+    .search-box {
+        max-width: 400px;
+    }
+
+    .data-count {
+        font-size: 0.875rem;
+        color: #6c757d;
+    }
+
+    .no-data {
+        text-align: center;
+        padding: 3rem;
+        color: #6c757d;
+    }
+
+    .no-data i {
+        font-size: 3rem;
+        margin-bottom: 1rem;
+    }
+
+    .tab-pane {
+        min-height: 400px;
+    }
+
+    .loading-spinner {
+        text-align: center;
+        padding: 3rem;
+    }
+
+    .error-message {
+        text-align: center;
+        padding: 2rem;
+        color: var(--amc-danger);
+    }
+
+    .copy-json-btn {
+        margin-left: auto;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="section-header d-flex justify-content-between align-items-center">
+            <div>
+                <h4 class="mb-0">
+                    <i class="bi bi-database-fill-gear me-2"></i>
+                    QuickBooks Data Viewer
+                </h4>
+                <small>View and explore data synced from QuickBooks Online</small>
+            </div>
+            <div>
+                <a href="/quickbooks" class="btn btn-light btn-sm">
+                    <i class="bi bi-arrow-left me-1"></i> Back to QB Status
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Navigation Tabs -->
+<div class="card">
+    <div class="card-header">
+        <ul class="nav nav-tabs card-header-tabs" id="qbDataTabs" role="tablist">
+            <li class="nav-item" role="presentation">
+                <button class="nav-link active" id="customers-tab" data-bs-toggle="tab" data-bs-target="#customers" type="button" role="tab">
+                    <i class="bi bi-people-fill me-1"></i>
+                    Customers <span class="badge bg-secondary ms-1" id="customers-count">0</span>
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="vendors-tab" data-bs-toggle="tab" data-bs-target="#vendors" type="button" role="tab">
+                    <i class="bi bi-building me-1"></i>
+                    Vendors <span class="badge bg-secondary ms-1" id="vendors-count">0</span>
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="items-tab" data-bs-toggle="tab" data-bs-target="#items" type="button" role="tab">
+                    <i class="bi bi-box-seam me-1"></i>
+                    Items <span class="badge bg-secondary ms-1" id="items-count">0</span>
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="invoices-tab" data-bs-toggle="tab" data-bs-target="#invoices" type="button" role="tab">
+                    <i class="bi bi-receipt me-1"></i>
+                    Invoices <span class="badge bg-secondary ms-1" id="invoices-count">0</span>
+                </button>
+            </li>
+        </ul>
+    </div>
+    <div class="card-body">
+        <!-- Tab Content -->
+        <div class="tab-content" id="qbDataTabContent">
+            <!-- Customers Tab -->
+            <div class="tab-pane fade show active" id="customers" role="tabpanel">
+                <div class="mb-3">
+                    <input type="text" class="form-control search-box" id="customers-search" placeholder="Search customers...">
+                </div>
+                <div id="customers-loading" class="loading-spinner">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                    <p class="mt-2">Loading customers...</p>
+                </div>
+                <div id="customers-error" class="error-message" style="display: none;"></div>
+                <div id="customers-data"></div>
+            </div>
+
+            <!-- Vendors Tab -->
+            <div class="tab-pane fade" id="vendors" role="tabpanel">
+                <div class="mb-3">
+                    <input type="text" class="form-control search-box" id="vendors-search" placeholder="Search vendors...">
+                </div>
+                <div id="vendors-loading" class="loading-spinner">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                    <p class="mt-2">Loading vendors...</p>
+                </div>
+                <div id="vendors-error" class="error-message" style="display: none;"></div>
+                <div id="vendors-data"></div>
+            </div>
+
+            <!-- Items Tab -->
+            <div class="tab-pane fade" id="items" role="tabpanel">
+                <div class="mb-3">
+                    <input type="text" class="form-control search-box" id="items-search" placeholder="Search items...">
+                </div>
+                <div id="items-loading" class="loading-spinner">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                    <p class="mt-2">Loading items...</p>
+                </div>
+                <div id="items-error" class="error-message" style="display: none;"></div>
+                <div id="items-data"></div>
+            </div>
+
+            <!-- Invoices Tab -->
+            <div class="tab-pane fade" id="invoices" role="tabpanel">
+                <div class="mb-3">
+                    <input type="text" class="form-control search-box" id="invoices-search" placeholder="Search invoices...">
+                </div>
+                <div id="invoices-loading" class="loading-spinner">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                    <p class="mt-2">Loading invoices...</p>
+                </div>
+                <div id="invoices-error" class="error-message" style="display: none;"></div>
+                <div id="invoices-data"></div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Data storage
+    let qbData = {
+        customers: [],
+        vendors: [],
+        items: [],
+        invoices: []
+    };
+
+    // Initialize on page load
+    document.addEventListener('DOMContentLoaded', function() {
+        loadCustomers();
+
+        // Set up tab change listeners to load data on demand
+        document.getElementById('vendors-tab').addEventListener('shown.bs.tab', function() {
+            if (qbData.vendors.length === 0) {
+                loadVendors();
+            }
+        });
+
+        document.getElementById('items-tab').addEventListener('shown.bs.tab', function() {
+            if (qbData.items.length === 0) {
+                loadItems();
+            }
+        });
+
+        document.getElementById('invoices-tab').addEventListener('shown.bs.tab', function() {
+            if (qbData.invoices.length === 0) {
+                loadInvoices();
+            }
+        });
+
+        // Set up search listeners
+        setupSearch('customers');
+        setupSearch('vendors');
+        setupSearch('items');
+        setupSearch('invoices');
+    });
+
+    // Load data functions
+    async function loadCustomers() {
+        await loadData('customers', '/api/qb/data/customers');
+    }
+
+    async function loadVendors() {
+        await loadData('vendors', '/api/qb/data/vendors');
+    }
+
+    async function loadItems() {
+        await loadData('items', '/api/qb/data/items');
+    }
+
+    async function loadInvoices() {
+        await loadData('invoices', '/api/qb/data/invoices');
+    }
+
+    // Generic data loader
+    async function loadData(type, url) {
+        const loadingEl = document.getElementById(`${type}-loading`);
+        const errorEl = document.getElementById(`${type}-error`);
+        const dataEl = document.getElementById(`${type}-data`);
+
+        loadingEl.style.display = 'block';
+        errorEl.style.display = 'none';
+        dataEl.innerHTML = '';
+
+        try {
+            const response = await fetch(url);
+            const result = await response.json();
+
+            if (response.ok) {
+                if (result.error) {
+                    throw new Error(result.error);
+                }
+                qbData[type] = result.data || [];
+                renderData(type);
+            } else {
+                throw new Error(result.error || 'Failed to load data');
+            }
+        } catch (error) {
+            console.error(`Error loading ${type}:`, error);
+            errorEl.textContent = `Error: ${error.message}`;
+            errorEl.style.display = 'block';
+        } finally {
+            loadingEl.style.display = 'none';
+        }
+    }
+
+    // Render data function
+    function renderData(type, filterText = '') {
+        const dataEl = document.getElementById(`${type}-data`);
+        const countEl = document.getElementById(`${type}-count`);
+        const data = qbData[type];
+
+        if (!data || data.length === 0) {
+            dataEl.innerHTML = `
+                <div class="no-data">
+                    <i class="bi bi-inbox"></i>
+                    <p>No ${type} data available</p>
+                </div>
+            `;
+            countEl.textContent = '0';
+            return;
+        }
+
+        // Filter data if search text provided
+        let filteredData = data;
+        if (filterText) {
+            const searchLower = filterText.toLowerCase();
+            filteredData = data.filter(item => {
+                const itemStr = JSON.stringify(item).toLowerCase();
+                return itemStr.includes(searchLower);
+            });
+        }
+
+        countEl.textContent = filteredData.length;
+
+        if (filteredData.length === 0) {
+            dataEl.innerHTML = `
+                <div class="no-data">
+                    <i class="bi bi-search"></i>
+                    <p>No results found for "${filterText}"</p>
+                </div>
+            `;
+            return;
+        }
+
+        // Render data items
+        let html = '';
+        filteredData.forEach((item, index) => {
+            const title = getItemTitle(item, type);
+            const subtitle = getItemSubtitle(item, type);
+
+            html += `
+                <div class="data-item" data-index="${index}" onclick="toggleItem(this)">
+                    <div class="data-item-header">
+                        <div>
+                            <div>${title}</div>
+                            ${subtitle ? `<small class="text-muted">${subtitle}</small>` : ''}
+                        </div>
+                        <div>
+                            <button class="btn btn-sm btn-outline-primary copy-json-btn" onclick="copyJSON(event, ${index}, '${type}')">
+                                <i class="bi bi-clipboard"></i> Copy JSON
+                            </button>
+                            <i class="bi bi-chevron-down ms-2"></i>
+                        </div>
+                    </div>
+                    <div class="data-item-body">
+                        <div class="json-viewer">${syntaxHighlight(JSON.stringify(item, null, 2))}</div>
+                    </div>
+                </div>
+            `;
+        });
+
+        dataEl.innerHTML = html;
+    }
+
+    // Get item title based on type
+    function getItemTitle(item, type) {
+        switch(type) {
+            case 'customers':
+                return item.DisplayName || item.CompanyName || item.FullyQualifiedName || 'Unnamed Customer';
+            case 'vendors':
+                return item.DisplayName || item.CompanyName || item.FullyQualifiedName || 'Unnamed Vendor';
+            case 'items':
+                return item.Name || item.FullyQualifiedName || 'Unnamed Item';
+            case 'invoices':
+                return `Invoice #${item.DocNumber || 'N/A'}`;
+            default:
+                return 'Unknown';
+        }
+    }
+
+    // Get item subtitle based on type
+    function getItemSubtitle(item, type) {
+        switch(type) {
+            case 'customers':
+                return item.PrimaryEmailAddr?.Address || item.Id || '';
+            case 'vendors':
+                return item.PrimaryEmailAddr?.Address || item.Id || '';
+            case 'items':
+                return `${item.Type || 'N/A'} ${item.Sku ? '- SKU: ' + item.Sku : ''} ${item.UnitPrice ? '- $' + item.UnitPrice : ''}`.trim();
+            case 'invoices':
+                return `Total: $${item.TotalAmt || '0.00'} - ${item.CustomerRef?.name || 'Unknown Customer'}`;
+            default:
+                return '';
+        }
+    }
+
+    // Toggle item expansion
+    function toggleItem(element) {
+        // Don't toggle if clicking the copy button
+        if (event.target.closest('.copy-json-btn')) {
+            return;
+        }
+
+        element.classList.toggle('expanded');
+        const icon = element.querySelector('.bi-chevron-down, .bi-chevron-up');
+        if (element.classList.contains('expanded')) {
+            icon.classList.remove('bi-chevron-down');
+            icon.classList.add('bi-chevron-up');
+        } else {
+            icon.classList.remove('bi-chevron-up');
+            icon.classList.add('bi-chevron-down');
+        }
+    }
+
+    // Copy JSON to clipboard
+    function copyJSON(event, index, type) {
+        event.stopPropagation();
+        const data = qbData[type][index];
+        const jsonString = JSON.stringify(data, null, 2);
+
+        navigator.clipboard.writeText(jsonString).then(() => {
+            showAlert('JSON copied to clipboard!', 'success');
+        }).catch(err => {
+            console.error('Failed to copy:', err);
+            showAlert('Failed to copy JSON', 'danger');
+        });
+    }
+
+    // Syntax highlighting for JSON
+    function syntaxHighlight(json) {
+        json = json.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+        return json.replace(/("(\\u[a-zA-Z0-9]{4}|\\[^u]|[^\\"])*"(\s*:)?|\b(true|false|null)\b|-?\d+(?:\.\d*)?(?:[eE][+\-]?\d+)?)/g, function (match) {
+            let cls = 'json-number';
+            if (/^"/.test(match)) {
+                if (/:$/.test(match)) {
+                    cls = 'json-key';
+                } else {
+                    cls = 'json-string';
+                }
+            } else if (/true|false/.test(match)) {
+                cls = 'json-boolean';
+            } else if (/null/.test(match)) {
+                cls = 'json-null';
+            }
+            return '<span class="' + cls + '">' + match + '</span>';
+        });
+    }
+
+    // Set up search functionality
+    function setupSearch(type) {
+        const searchInput = document.getElementById(`${type}-search`);
+        searchInput.addEventListener('input', function(e) {
+            renderData(type, e.target.value);
+        });
+    }
+</script>
+{% endblock %}

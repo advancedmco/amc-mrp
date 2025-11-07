@@ -553,6 +553,11 @@ def quickbooks_status():
     """QuickBooks connection status page"""
     return render_template('quickbooks_status.html')
 
+@app.route('/quickbooks/data')
+def quickbooks_data_viewer():
+    """QuickBooks data viewer page"""
+    return render_template('quickbooks_data.html')
+
 @app.route('/order_details/<int:work_order_id>')
 def order_details(work_order_id):
     """Get order details as JSON"""
@@ -831,6 +836,74 @@ def api_qb_test():
 
     except requests.exceptions.RequestException as e:
         logger.error(f"Error testing QB connection: {e}")
+        return jsonify({'error': 'Cannot connect to QuickBooks backend', 'details': str(e)}), 503
+
+@app.route('/api/qb/data/customers')
+def api_qb_customers():
+    """Get QuickBooks customers data"""
+    try:
+        backend_url = os.getenv('BACKEND_URL', 'http://backend:5002')
+        limit = request.args.get('limit', 1000)
+        response = requests.get(f'{backend_url}/api/data/customers?limit={limit}', timeout=10)
+
+        if response.status_code == 200:
+            return jsonify(response.json())
+        else:
+            return jsonify(response.json()), response.status_code
+
+    except requests.exceptions.RequestException as e:
+        logger.error(f"Error getting QB customers: {e}")
+        return jsonify({'error': 'Cannot connect to QuickBooks backend', 'details': str(e)}), 503
+
+@app.route('/api/qb/data/vendors')
+def api_qb_vendors():
+    """Get QuickBooks vendors data"""
+    try:
+        backend_url = os.getenv('BACKEND_URL', 'http://backend:5002')
+        limit = request.args.get('limit', 1000)
+        response = requests.get(f'{backend_url}/api/data/vendors?limit={limit}', timeout=10)
+
+        if response.status_code == 200:
+            return jsonify(response.json())
+        else:
+            return jsonify(response.json()), response.status_code
+
+    except requests.exceptions.RequestException as e:
+        logger.error(f"Error getting QB vendors: {e}")
+        return jsonify({'error': 'Cannot connect to QuickBooks backend', 'details': str(e)}), 503
+
+@app.route('/api/qb/data/items')
+def api_qb_items():
+    """Get QuickBooks items data"""
+    try:
+        backend_url = os.getenv('BACKEND_URL', 'http://backend:5002')
+        limit = request.args.get('limit', 1000)
+        response = requests.get(f'{backend_url}/api/data/items?limit={limit}', timeout=10)
+
+        if response.status_code == 200:
+            return jsonify(response.json())
+        else:
+            return jsonify(response.json()), response.status_code
+
+    except requests.exceptions.RequestException as e:
+        logger.error(f"Error getting QB items: {e}")
+        return jsonify({'error': 'Cannot connect to QuickBooks backend', 'details': str(e)}), 503
+
+@app.route('/api/qb/data/invoices')
+def api_qb_invoices():
+    """Get QuickBooks invoices data"""
+    try:
+        backend_url = os.getenv('BACKEND_URL', 'http://backend:5002')
+        limit = request.args.get('limit', 1000)
+        response = requests.get(f'{backend_url}/api/data/invoices?limit={limit}', timeout=10)
+
+        if response.status_code == 200:
+            return jsonify(response.json())
+        else:
+            return jsonify(response.json()), response.status_code
+
+    except requests.exceptions.RequestException as e:
+        logger.error(f"Error getting QB invoices: {e}")
         return jsonify({'error': 'Cannot connect to QuickBooks backend', 'details': str(e)}), 503
 
 if __name__ == '__main__':

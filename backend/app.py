@@ -135,12 +135,30 @@ def save_tokens():
         tokens_to_save = tokens.copy()
         if tokens_to_save['expires_at']:
             tokens_to_save['expires_at'] = tokens_to_save['expires_at'].isoformat()
-        
+
         with open(TOKEN_FILE, 'w') as f:
             json.dump(tokens_to_save, f)
         logger.info("Tokens saved to file")
     except Exception as e:
         logger.error(f"Error saving tokens: {str(e)}")
+
+def clear_tokens():
+    """Clear tokens from memory and file to enable fresh authentication"""
+    global tokens
+    tokens = {
+        'access_token': None,
+        'refresh_token': None,
+        'expires_at': None,
+        'company_id': None
+    }
+
+    # Delete token file if it exists
+    try:
+        if os.path.exists(TOKEN_FILE):
+            os.remove(TOKEN_FILE)
+            logger.info("Token file deleted")
+    except Exception as e:
+        logger.error(f"Error deleting token file: {str(e)}")
 
 # Load tokens on startup
 load_tokens()
@@ -253,7 +271,7 @@ def categorize_error(status_code, response_text=""):
 def refresh_access_token():
     """Refresh the access token using refresh token"""
     if not tokens['refresh_token']:
-        logger.error("No refresh token available")
+        logger.error("No refresh token available - please re-authenticate via OAuth")
         return False
 
     data = {
@@ -288,16 +306,29 @@ def refresh_access_token():
             save_tokens()  # Save tokens to file
             logger.info("Access token refreshed successfully")
             return True
+        elif response.status_code == 401:
+            # Refresh token is invalid or expired - clear tokens to allow re-authentication
+            error_type, error_msg, is_retryable = categorize_error(response.status_code, response.text)
+            logger.error(f"Refresh token is invalid or expired ({error_type}): {error_msg}")
+            logger.error("Clearing tokens to allow re-authentication. Please complete OAuth flow again.")
+            clear_tokens()
+            return False
         else:
             error_type, error_msg, is_retryable = categorize_error(response.status_code, response.text)
             logger.error(f"Failed to refresh token ({error_type}): {error_msg}")
             logger.debug(f"Response: {response.text}")
+
+            # If error indicates invalid credentials, clear tokens
+            if response.status_code in [400, 403]:
+                logger.error("Token refresh failed with auth error - clearing tokens to allow re-authentication")
+                clear_tokens()
+
             return False
     except Timeout:
-        logger.error(f"Token refresh timeout after {QB_AUTH_TIMEOUT}s")
+        logger.error(f"Token refresh timeout after {QB_AUTH_TIMEOUT}s - QuickBooks OAuth server may be unreachable")
         return False
     except ConnectionError as e:
-        logger.error(f"Connection error during token refresh: {str(e)}")
+        logger.error(f"Connection error during token refresh: {str(e)} - check network connectivity")
         return False
     except RequestException as e:
         logger.error(f"Request error during token refresh: {str(e)}")
@@ -641,18 +672,27 @@ def update_cache():
     """Update cached data from QuickBooks"""
     global cached_data
 
+    # Skip cache update if not authenticated
+    if not tokens['access_token'] or not tokens['refresh_token']:
+        logger.warning("Skipping cache update - not authenticated. Please complete OAuth flow.")
+        return
+
     logger.info("Updating cache from QuickBooks...")
 
-    cached_data['customers'] = fetch_customers()
-    cached_data['vendors'] = fetch_vendors()
-    cached_data['items'] = fetch_items()
-    cached_data['invoices'] = fetch_invoices()
-    cached_data['last_updated'] = datetime.now()
+    try:
+        cached_data['customers'] = fetch_customers()
+        cached_data['vendors'] = fetch_vendors()
+        cached_data['items'] = fetch_items()
+        cached_data['invoices'] = fetch_invoices()
+        cached_data['last_updated'] = datetime.now()
 
-    # Build search indexes
-    build_search_indexes()
+        # Build search indexes
+        build_search_indexes()
 
-    logger.info(f"Cache updated. Customers: {len(cached_data['customers'])}, Vendors: {len(cached_data['vendors'])}, Items: {len(cached_data['items'])}, Invoices: {len(cached_data['invoices'])}")
+        logger.info(f"Cache updated. Customers: {len(cached_data['customers'])}, Vendors: {len(cached_data['vendors'])}, Items: {len(cached_data['items'])}, Invoices: {len(cached_data['invoices'])}")
+    except Exception as e:
+        logger.error(f"Error during cache update: {str(e)}")
+        # Don't raise - just log and continue
 
 def search_index(index_name, query, limit=15):
     """Search a specific index"""
@@ -788,24 +828,47 @@ def get_auth_url():
         'state': state
     })
 
+@app.route('/api/auth/status', methods=['GET'])
+def auth_status():
+    """Get authentication status and recommendations"""
+    is_authenticated = tokens['access_token'] is not None and tokens['refresh_token'] is not None
+    is_expired = is_token_expired() if tokens['expires_at'] else True
+    has_config = QB_CLIENT_ID is not None and QB_CLIENT_SECRET is not None
+
+    status = {
+        'authenticated': is_authenticated,
+        'token_expired': is_expired,
+        'has_config': has_config,
+        'circuit_breaker_state': circuit_breaker['state'],
+        'expires_at': tokens['expires_at'].isoformat() if tokens['expires_at'] else None,
+        'company_id': tokens.get('company_id') or QB_COMPANY_ID
+    }
+
+    # Provide recommendations
+    if not has_config:
+        status['recommendation'] = 'Configure QB_CLIENT_ID and QB_CLIENT_SECRET in .env'
+        status['action'] = 'configure'
+    elif not is_authenticated:
+        status['recommendation'] = 'Complete OAuth flow to authenticate'
+        status['action'] = 'authenticate'
+    elif is_expired:
+        status['recommendation'] = 'Token expired - will attempt automatic refresh on next API call'
+        status['action'] = 'wait'
+    elif circuit_breaker['state'] == 'open':
+        status['recommendation'] = 'Circuit breaker is open due to failures - waiting for automatic recovery'
+        status['action'] = 'wait'
+    else:
+        status['recommendation'] = 'Connected and ready'
+        status['action'] = 'none'
+
+    return jsonify(status)
+
 @app.route('/api/disconnect', methods=['POST'])
 def disconnect():
     """Disconnect from QuickBooks by clearing tokens"""
-    global tokens
-
     try:
-        # Clear tokens
-        tokens = {
-            'access_token': None,
-            'refresh_token': None,
-            'expires_at': None,
-            'company_id': None
-        }
-
-        # Delete token file
-        if os.path.exists(TOKEN_FILE):
-            os.remove(TOKEN_FILE)
-            logger.info("Token file deleted")
+        # Clear tokens using the dedicated function
+        clear_tokens()
 
         # Clear cached data
         global cached_data
@@ -817,11 +880,19 @@ def disconnect():
             'last_updated': None
         }
 
-        logger.info("Disconnected from QuickBooks")
+        # Reset circuit breaker to allow fresh authentication
+        global circuit_breaker
+        circuit_breaker = {
+            'failures': 0,
+            'last_failure_time': None,
+            'state': 'closed'
+        }
+
+        logger.info("Disconnected from QuickBooks and reset circuit breaker")
 
         return jsonify({
             'success': True,
-            'message': 'Disconnected from QuickBooks successfully'
+            'message': 'Disconnected from QuickBooks successfully. Circuit breaker reset.'
         })
 
     except Exception as e:
@@ -1026,16 +1097,25 @@ def oauth_callback():
                 tokens['access_token'] = token_data['access_token']
                 tokens['refresh_token'] = token_data['refresh_token']
                 tokens['expires_at'] = datetime.now() + timedelta(seconds=token_data['expires_in'])
-                
+
                 # Store company ID from callback if available
                 realm_id = request.args.get('realmId')
                 if realm_id:
                     tokens['company_id'] = realm_id
                     logger.info(f"Company ID stored: {realm_id}")
-                
+
                 save_tokens()  # Save tokens to file
                 logger.info("OAuth successful! Tokens obtained and stored.")
                 logger.info(f"Access token expires in: {token_data['expires_in']} seconds")
+
+                # Reset circuit breaker on successful authentication
+                global circuit_breaker
+                circuit_breaker = {
+                    'failures': 0,
+                    'last_failure_time': None,
+                    'state': 'closed'
+                }
+                logger.info("Circuit breaker reset after successful authentication")
 
                 # Trigger immediate cache update with new tokens
                 try:
@@ -1077,8 +1157,12 @@ def start_scheduler():
     scheduler.add_job(update_cache, 'interval', hours=1)
     scheduler.start()
 
-    # Initial cache update
-    update_cache()
+    # Only run initial cache update if we have valid tokens
+    if tokens['access_token'] and tokens['refresh_token']:
+        logger.info("Valid tokens found - running initial cache update")
+        update_cache()
+    else:
+        logger.info("No valid tokens - skipping initial cache update. Please authenticate via OAuth.")
 
 if __name__ == '__main__':
     # Start scheduler in background thread

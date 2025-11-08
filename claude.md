@@ -370,3 +370,4 @@ mysql -h localhost -P 3307 -u amc -p amcmrp
 ---
 
 **Remember:** Always read this file and check for updates before starting work!
+- don't add test files, artifacts, or md files to the repo unless explicitly asked. 

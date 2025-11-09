@@ -13,6 +13,7 @@ USE amcmrp;
 -- =============================================
 -- DROP EVERYTHING
 -- =============================================
+DROP VIEW IF EXISTS vw_CustomerPODetails;
 DROP VIEW IF EXISTS vw_BOMDetails;
 DROP VIEW IF EXISTS vw_WorkOrderSummary;
 
@@ -25,6 +26,8 @@ DROP TABLE IF EXISTS PurchaseOrdersLog;
 DROP TABLE IF EXISTS BOMProcesses;
 DROP TABLE IF EXISTS BOM;
 DROP TABLE IF EXISTS WorkOrders;
+DROP TABLE IF EXISTS CustomerPOLineItems;
+DROP TABLE IF EXISTS CustomerPurchaseOrders;
 DROP TABLE IF EXISTS Parts;
 DROP TABLE IF EXISTS Vendors;
 DROP TABLE IF EXISTS Customers;
@@ -71,7 +74,46 @@ CREATE TABLE Parts (
     INDEX idx_part_number (PartNumber)
 );
 
--- 4. Work Orders Table (Main work order management)
+-- 4. Customer Purchase Orders Table (Incoming orders from customers)
+CREATE TABLE CustomerPurchaseOrders (
+    PO_ID INT AUTO_INCREMENT PRIMARY KEY,
+    PO_Number VARCHAR(50) NOT NULL UNIQUE,
+    CustomerID INT,
+    Order_Date DATE NOT NULL,
+    Total_Value DECIMAL(10,2),
+    Status ENUM('Open', 'In Progress', 'Completed', 'Cancelled') DEFAULT 'Open',
+    Notes TEXT,
+    CreatedDate TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UpdatedDate TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (CustomerID) REFERENCES Customers(CustomerID),
+    INDEX idx_po_number (PO_Number),
+    INDEX idx_customer_po (CustomerID),
+    INDEX idx_order_date (Order_Date)
+);
+
+-- 5. Customer PO Line Items Table (Individual parts on each customer PO)
+CREATE TABLE CustomerPOLineItems (
+    LineItem_ID INT AUTO_INCREMENT PRIMARY KEY,
+    PO_ID INT NOT NULL,
+    Line_Number INT NOT NULL,
+    Part_Number VARCHAR(100) NOT NULL,
+    Description VARCHAR(500),
+    Quantity INT NOT NULL,
+    Unit_Price DECIMAL(10,2),
+    Extended_Price DECIMAL(10,2),
+    Due_Date DATE,
+    Status ENUM('Pending', 'In Production', 'Completed', 'Shipped') DEFAULT 'Pending',
+    Notes TEXT,
+    CreatedDate TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UpdatedDate TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (PO_ID) REFERENCES CustomerPurchaseOrders(PO_ID) ON DELETE CASCADE,
+    INDEX idx_po_line (PO_ID, Line_Number),
+    INDEX idx_part_number_line (Part_Number),
+    INDEX idx_due_date (Due_Date),
+    INDEX idx_status (Status)
+);
+
+-- 6. Work Orders Table (Main work order management)
 CREATE TABLE WorkOrders (
     WorkOrderID INT AUTO_INCREMENT PRIMARY KEY,
     CustomerID INT NOT NULL,
@@ -98,7 +140,7 @@ CREATE TABLE WorkOrders (
 -- BOM TABLES
 -- =============================================
 
--- 5. BOM Table (Bill of Materials linked to work orders)
+-- 7. BOM Table (Bill of Materials linked to work orders)
 CREATE TABLE BOM (
     BOMID INT AUTO_INCREMENT PRIMARY KEY,
     WorkOrderID INT NOT NULL,
@@ -111,7 +153,7 @@ CREATE TABLE BOM (
     INDEX idx_work_order (WorkOrderID)
 );
 
--- 6. BOM Processes Table (Individual processes within BOMs)
+-- 8. BOM Processes Table (Individual processes within BOMs)
 CREATE TABLE BOMProcesses (
     ProcessID INT AUTO_INCREMENT PRIMARY KEY,
     BOMID INT NOT NULL,
@@ -139,7 +181,7 @@ CREATE TABLE BOMProcesses (
 -- LOGGING TABLES (For document generation history)
 -- =============================================
 
--- 7. Purchase Orders Log Table (Historical record of all generated POs)
+-- 9. Purchase Orders Log Table (Historical record of all generated POs to vendors)
 CREATE TABLE PurchaseOrdersLog (
     POLogID INT AUTO_INCREMENT PRIMARY KEY,
     PONumber VARCHAR(50) NOT NULL,
@@ -169,7 +211,7 @@ CREATE TABLE PurchaseOrdersLog (
     INDEX idx_vendor_po (VendorID)
 );
 
--- 8. Certificates of Completion Log Table (Historical record of all generated COCs)
+-- 10. Certificates of Completion Log Table (Historical record of all generated COCs)
 CREATE TABLE CertificatesLog (
     CertificateLogID INT AUTO_INCREMENT PRIMARY KEY,
     CertificateNumber VARCHAR(50) NOT NULL,
@@ -198,7 +240,7 @@ CREATE TABLE CertificatesLog (
 -- SUPPORTING TABLES
 -- =============================================
 
--- 9. Work Order Status History (Track status changes)
+-- 11. Work Order Status History (Track status changes)
 CREATE TABLE WorkOrderStatusHistory (
     StatusHistoryID INT AUTO_INCREMENT PRIMARY KEY,
     WorkOrderID INT NOT NULL,
@@ -211,7 +253,7 @@ CREATE TABLE WorkOrderStatusHistory (
     INDEX idx_work_order_status (WorkOrderID)
 );
 
--- 10. Production Stages (Track quantities through manufacturing process)
+-- 12. Production Stages (Track quantities through manufacturing process)
 CREATE TABLE ProductionStages (
     StageID INT AUTO_INCREMENT PRIMARY KEY,
     WorkOrderID INT NOT NULL,
@@ -282,6 +324,29 @@ FROM BOM b
 JOIN WorkOrders wo ON b.WorkOrderID = wo.WorkOrderID
 JOIN BOMProcesses bp ON b.BOMID = bp.BOMID
 LEFT JOIN Vendors v ON bp.VendorID = v.VendorID;
+
+-- View for Customer PO Details with Line Items
+CREATE VIEW vw_CustomerPODetails AS
+SELECT
+    cpo.PO_ID,
+    cpo.PO_Number,
+    c.CustomerName,
+    cpo.Order_Date,
+    cpo.Total_Value,
+    cpo.Status as PO_Status,
+    li.LineItem_ID,
+    li.Line_Number,
+    li.Part_Number,
+    li.Description,
+    li.Quantity,
+    li.Unit_Price,
+    li.Extended_Price,
+    li.Due_Date,
+    li.Status as LineItem_Status,
+    DATEDIFF(li.Due_Date, CURDATE()) as DaysUntilDue
+FROM CustomerPurchaseOrders cpo
+LEFT JOIN Customers c ON cpo.CustomerID = c.CustomerID
+LEFT JOIN CustomerPOLineItems li ON cpo.PO_ID = li.PO_ID;
 
 -- =============================================
 -- INDEXES FOR PERFORMANCE

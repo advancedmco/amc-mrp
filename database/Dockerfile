@@ -10,7 +10,7 @@ COPY mariadb.cnf /etc/mysql/conf.d/custom.cnf
 # Copy initialization scripts
 # These will be executed in alphabetical order when the container starts
 COPY DDL.sql /docker-entrypoint-initdb.d/01-schema.sql
-COPY test_data/testdata.sql /docker-entrypoint-initdb.d/02-data.sql
+COPY base_initial_data.sql /docker-entrypoint-initdb.d/02-base-data.sql
 
 # Create log directory for MariaDB
 RUN mkdir -p /var/log/mysql && \

@@ -24,3 +24,12 @@ Customer Purchase Orders (NEW - November 2025):
 - Import script: import_shibaura_pos.py - Imports historical Shibaura POs from CSV
 - Test script: test_customer_po_import.py - Validates schema and data integrity
 - Documentation: See CUSTOMER_PO_README.md for detailed schema, queries, and usage examples
+
+Base Initial Data (NEW - November 2025):
+- Created base_initial_data.sql - Complete minimal dataset that satisfies all constraints
+- Includes: 5 customers, 11 vendors, 10 parts, 3 POs with 6 line items, 3 work orders, 3 BOMs with 15 processes
+- Demonstrates complete workflows: historical completed order, active production, pending material
+- Docker container automatically loads base data on initialization
+- Validation script: validate_base_data.py - Comprehensive testing of data integrity
+- Documentation: See BASE_DATA_README.md for detailed data structure and use cases
+- Use base data for development, testing, and as templates for creating new records

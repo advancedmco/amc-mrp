@@ -63,7 +63,6 @@
 
 **database/** - MariaDB Database
 - Schema: DDL.sql
-- Test data: test_data/testdata.sql
 - Fresh database on each Docker startup (tmpfs)
 - No persistent volumes in development
 - Custom Dockerfile extending mariadb:11
@@ -122,7 +121,7 @@ docker compose ps
   ```
 
 **For Database Changes:**
-- Edit DDL.sql or testdata.sql
+- Edit DDL.sql
 - Rebuild and restart:
   ```bash
   docker compose build mysql
@@ -219,7 +218,7 @@ docker compose build --no-cache [service-name]
 
 ### Modifying Database Schema
 1. Edit database/DDL.sql
-2. Update database/test_data/testdata.sql if needed
+2. Update database/base_initial_data.sql if needed
 3. Test with fresh database:
    ```bash
    docker compose down && docker compose up -d

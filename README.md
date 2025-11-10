@@ -117,6 +117,9 @@ QB_CLIENT_SECRET=your_client_secret
 QB_SANDBOX_BASE_URL=https://sandbox-quickbooks.api.intuit.com
 QB_COMPANY_ID=your_company_id
 
+# Backend Service URL (for frontend-backend communication)
+BACKEND_URL=http://backend:5002
+
 # Flask
 FLASK_SECRET_KEY=your_secret_key
 PRODUCTION_URI=https://mrp.inge.st
@@ -198,10 +201,20 @@ docker compose exec backend pip list
 Backend daemon service with OAuth token management and data synchronization.
 
 ### Features
+- **Persistent OAuth token storage** - Tokens saved to database and persist across container restarts
 - Token refresh automation to prevent expiration
 - Hourly cache updates for vendors, customers, products
 - Fuzzy search indexing for quick lookups
 - REST API for web dashboard integration
+
+### OAuth Token Persistence
+OAuth credentials are now stored in the `OAuthTokens` database table instead of temporary file storage. This ensures:
+- Credentials persist across system reboots and container restarts
+- No need to re-authenticate after restarting services
+- Automatic migration from legacy file-based storage (if exists)
+- Secure database storage with proper access controls
+
+When you first authenticate with QuickBooks, the tokens are automatically saved to the database. On subsequent restarts, the backend service loads these tokens automatically.
 
 ### Integration Points
 - Customer data for work order creation
@@ -210,6 +223,81 @@ Backend daemon service with OAuth token management and data synchronization.
 - Cost tracking through QuickBooks bill integration
 
 ## Troubleshooting
+
+### Production API 404 Errors (nginx/reverse proxy setup)
+
+When using a production URI with a reverse proxy (nginx, nginx proxy manager, etc.), you may encounter 404 errors for dashboard API endpoints. This happens when the proxy routes ALL `/api/*` requests to the backend service, but some API endpoints are on the frontend service.
+
+**API Endpoint Locations:**
+- Frontend (port 5001):
+  - `/api/dashboard/metrics`
+  - `/api/dashboard/charts`
+  - `/api/qb/*` (proxies to backend internally)
+- Backend (port 5002):
+  - `/api/cache/status`
+  - `/api/config`
+  - `/api/auth/url`
+  - `/api/disconnect`
+  - `/api/test`
+  - `/api/cache/refresh`
+  - `/api/data/*`
+  - `/callback` (OAuth callback)
+
+**Correct nginx/proxy configuration:**
+
+Option 1 - Route only specific backend paths (recommended):
+```nginx
+# Main site routes to frontend
+location / {
+    proxy_pass http://localhost:5001;
+}
+
+# OAuth callback to backend
+location /callback {
+    proxy_pass http://localhost:5002;
+}
+
+# Only QuickBooks-specific API routes to backend
+location /api/cache/ {
+    proxy_pass http://localhost:5002;
+}
+
+location /api/config {
+    proxy_pass http://localhost:5002;
+}
+
+location /api/auth/ {
+    proxy_pass http://localhost:5002;
+}
+
+location /api/disconnect {
+    proxy_pass http://localhost:5002;
+}
+
+location /api/test {
+    proxy_pass http://localhost:5002;
+}
+
+location /api/data/ {
+    proxy_pass http://localhost:5002;
+}
+```
+
+Option 2 - Route everything to frontend and let it proxy:
+```nginx
+# Route everything to frontend
+location / {
+    proxy_pass http://localhost:5001;
+}
+
+# Only route OAuth callback to backend
+location /callback {
+    proxy_pass http://localhost:5002;
+}
+```
+
+**Permissions-Policy warnings:**
+The browser warnings about `browsing-topics`, `run-ad-auction`, etc. are harmless and can be ignored. They appear when accessing the production URI from development and are related to privacy sandbox features.
 
 ### Database Connection Issues
 ```bash

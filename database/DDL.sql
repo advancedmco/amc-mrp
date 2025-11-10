@@ -19,6 +19,7 @@ DROP VIEW IF EXISTS vw_WorkOrderSummary;
 
 DROP TRIGGER IF EXISTS trg_workorder_status_history;
 
+DROP TABLE IF EXISTS OAuthTokens;
 DROP TABLE IF EXISTS ProductionStages;
 DROP TABLE IF EXISTS WorkOrderStatusHistory;
 DROP TABLE IF EXISTS CertificatesLog;
@@ -266,6 +267,19 @@ CREATE TABLE ProductionStages (
     CreatedDate TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (WorkOrderID) REFERENCES WorkOrders(WorkOrderID),
     INDEX idx_work_order_stage (WorkOrderID)
+);
+
+-- 13. OAuth Tokens (Persistent storage for QuickBooks OAuth credentials)
+CREATE TABLE OAuthTokens (
+    TokenID INT AUTO_INCREMENT PRIMARY KEY,
+    ServiceName VARCHAR(50) NOT NULL DEFAULT 'QuickBooks',
+    AccessToken TEXT,
+    RefreshToken TEXT,
+    CompanyID VARCHAR(100),
+    ExpiresAt DATETIME,
+    CreatedDate TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UpdatedDate TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    UNIQUE KEY idx_service_name (ServiceName)
 );
 
 -- =============================================

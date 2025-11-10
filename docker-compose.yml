@@ -41,6 +41,7 @@ services:
       DB_PASSWORD: ${DB_PASSWORD}
       DB_PORT: 3306
       FLASK_SECRET_KEY: ${FLASK_SECRET_KEY}
+      BACKEND_URL: ${BACKEND_URL}
       COC_TEMPLATE_PATH: /app/templates/documents/COC Template.docx
       COC_OUTPUT_DIR: /app/CACHE
       PO_TEMPLATE_PATH: /app/templates/documents/PO Template.docx

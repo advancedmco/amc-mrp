@@ -11,6 +11,8 @@ from apscheduler.schedulers.background import BackgroundScheduler
 # Using direct API calls instead of quickbooks-python library due to compatibility issues
 import requests
 from requests.exceptions import Timeout, ConnectionError, RequestException
+import pymysql
+from pymysql.cursors import DictCursor
 
 # Load environment variables
 load_dotenv()
@@ -20,6 +22,25 @@ app = Flask(__name__)
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+# Database configuration
+DB_CONFIG = {
+    'host': os.getenv('DB_HOST', 'mysql'),
+    'user': os.getenv('DB_USER', 'amc'),
+    'password': os.getenv('DB_PASSWORD', 'Workbench.lavender.chrome'),
+    'database': os.getenv('DB_NAME', 'amcmrp'),
+    'port': int(os.getenv('DB_PORT', 3306)),
+    'cursorclass': DictCursor,
+    'charset': 'utf8mb4'
+}
+
+def get_db_connection():
+    """Get database connection"""
+    try:
+        return pymysql.connect(**DB_CONFIG)
+    except Exception as e:
+        logger.error(f"Database connection failed: {e}")
+        return None
 
 # Timeout and retry configuration
 QB_API_TIMEOUT = int(os.getenv('QB_API_TIMEOUT', '30'))  # Default 30 seconds for QB API calls
@@ -101,10 +122,10 @@ logger.info(f"QB_REDIRECT_URI: {QB_REDIRECT_URI}")
 # Validate environment variables
 validate_env_vars()
 
-# Token storage file path
+# Token storage file path (fallback for backward compatibility)
 TOKEN_FILE = '/tmp/qb_tokens.json'
 
-# Token storage (with file persistence)
+# Token storage (with database persistence)
 tokens = {
     'access_token': None,
     'refresh_token': None,
@@ -113,8 +134,41 @@ tokens = {
 }
 
 def load_tokens():
-    """Load tokens from file if they exist"""
+    """Load tokens from database (with file fallback for migration)"""
     global tokens
+
+    # Try loading from database first
+    conn = get_db_connection()
+    if conn:
+        try:
+            with conn.cursor() as cursor:
+                cursor.execute("""
+                    SELECT AccessToken, RefreshToken, CompanyID, ExpiresAt
+                    FROM OAuthTokens
+                    WHERE ServiceName = 'QuickBooks'
+                    LIMIT 1
+                """)
+                result = cursor.fetchone()
+
+                if result:
+                    tokens['access_token'] = result['AccessToken']
+                    tokens['refresh_token'] = result['RefreshToken']
+                    tokens['company_id'] = result['CompanyID']
+                    if result['ExpiresAt']:
+                        tokens['expires_at'] = result['ExpiresAt']
+                    logger.info("Tokens loaded from database")
+                    logger.info(f"Token expires at: {tokens['expires_at']}")
+                    conn.close()
+                    return
+                else:
+                    logger.info("No tokens found in database")
+            conn.close()
+        except Exception as e:
+            logger.error(f"Error loading tokens from database: {str(e)}")
+            if conn:
+                conn.close()
+
+    # Fallback: Try loading from file for backward compatibility
     try:
         if os.path.exists(TOKEN_FILE):
             with open(TOKEN_FILE, 'r') as f:
@@ -123,27 +177,53 @@ def load_tokens():
                 # Convert expires_at string back to datetime
                 if tokens['expires_at']:
                     tokens['expires_at'] = datetime.fromisoformat(tokens['expires_at'])
-                logger.info("Tokens loaded from file")
+                logger.info("Tokens loaded from file (legacy)")
                 logger.info(f"Token expires at: {tokens['expires_at']}")
+                # Migrate to database
+                save_tokens()
+                # Remove old file after successful migration
+                try:
+                    os.remove(TOKEN_FILE)
+                    logger.info("Migrated tokens from file to database")
+                except:
+                    pass
     except Exception as e:
-        logger.error(f"Error loading tokens: {str(e)}")
+        logger.error(f"Error loading tokens from file: {str(e)}")
 
 def save_tokens():
-    """Save tokens to file"""
-    try:
-        # Convert datetime to string for JSON serialization
-        tokens_to_save = tokens.copy()
-        if tokens_to_save['expires_at']:
-            tokens_to_save['expires_at'] = tokens_to_save['expires_at'].isoformat()
+    """Save tokens to database"""
+    conn = get_db_connection()
+    if not conn:
+        logger.error("Cannot save tokens: database connection failed")
+        return
 
-        with open(TOKEN_FILE, 'w') as f:
-            json.dump(tokens_to_save, f)
-        logger.info("Tokens saved to file")
+    try:
+        with conn.cursor() as cursor:
+            # Use INSERT ... ON DUPLICATE KEY UPDATE for upsert behavior
+            cursor.execute("""
+                INSERT INTO OAuthTokens (ServiceName, AccessToken, RefreshToken, CompanyID, ExpiresAt)
+                VALUES ('QuickBooks', %s, %s, %s, %s)
+                ON DUPLICATE KEY UPDATE
+                    AccessToken = VALUES(AccessToken),
+                    RefreshToken = VALUES(RefreshToken),
+                    CompanyID = VALUES(CompanyID),
+                    ExpiresAt = VALUES(ExpiresAt)
+            """, (
+                tokens['access_token'],
+                tokens['refresh_token'],
+                tokens['company_id'],
+                tokens['expires_at']
+            ))
+            conn.commit()
+            logger.info("Tokens saved to database")
     except Exception as e:
-        logger.error(f"Error saving tokens: {str(e)}")
+        logger.error(f"Error saving tokens to database: {str(e)}")
+        conn.rollback()
+    finally:
+        conn.close()
 
 def clear_tokens():
-    """Clear tokens from memory and file to enable fresh authentication"""
+    """Clear tokens from memory and database to enable fresh authentication"""
     global tokens
     tokens = {
         'access_token': None,
@@ -152,11 +232,25 @@ def clear_tokens():
         'company_id': None
     }
 
-    # Delete token file if it exists
+    # Delete from database
+    conn = get_db_connection()
+    if conn:
+        try:
+            with conn.cursor() as cursor:
+                cursor.execute("DELETE FROM OAuthTokens WHERE ServiceName = 'QuickBooks'")
+                conn.commit()
+                logger.info("Tokens deleted from database")
+        except Exception as e:
+            logger.error(f"Error deleting tokens from database: {str(e)}")
+            conn.rollback()
+        finally:
+            conn.close()
+
+    # Also delete token file if it exists (cleanup legacy)
     try:
         if os.path.exists(TOKEN_FILE):
             os.remove(TOKEN_FILE)
-            logger.info("Token file deleted")
+            logger.info("Legacy token file deleted")
     except Exception as e:
         logger.error(f"Error deleting token file: {str(e)}")
 

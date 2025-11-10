@@ -201,10 +201,20 @@ docker compose exec backend pip list
 Backend daemon service with OAuth token management and data synchronization.
 
 ### Features
+- **Persistent OAuth token storage** - Tokens saved to database and persist across container restarts
 - Token refresh automation to prevent expiration
 - Hourly cache updates for vendors, customers, products
 - Fuzzy search indexing for quick lookups
 - REST API for web dashboard integration
+
+### OAuth Token Persistence
+OAuth credentials are now stored in the `OAuthTokens` database table instead of temporary file storage. This ensures:
+- Credentials persist across system reboots and container restarts
+- No need to re-authenticate after restarting services
+- Automatic migration from legacy file-based storage (if exists)
+- Secure database storage with proper access controls
+
+When you first authenticate with QuickBooks, the tokens are automatically saved to the database. On subsequent restarts, the backend service loads these tokens automatically.
 
 ### Integration Points
 - Customer data for work order creation

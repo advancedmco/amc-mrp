@@ -307,7 +307,7 @@
                 if (result.error) {
                     throw new Error(result.error);
                 }
-                qbData[type] = result.data || [];
+                qbData[type] = result[type] || [];
                 renderData(type);
             } else {
                 throw new Error(result.error || 'Failed to load data');

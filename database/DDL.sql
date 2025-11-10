@@ -68,7 +68,6 @@ CREATE TABLE Parts (
     PartName VARCHAR(200) NOT NULL,
     Description TEXT,
     Material VARCHAR(100),
-    DrawingNumber VARCHAR(100),
     FSN VARCHAR(50), -- Federal Stock Number
     CreatedDate TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     UpdatedDate TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -223,7 +222,6 @@ CREATE TABLE CertificatesLog (
     CustomerPONumber VARCHAR(100),
     Quantity INT NOT NULL,
     CompletionDate DATE NOT NULL,
-    DrawingNumber VARCHAR(100),
     FSN VARCHAR(50),
     ApprovedBy VARCHAR(100) DEFAULT 'Beniamin Grama',
     ApproverTitle VARCHAR(100) DEFAULT 'Quality Assurance Manager',

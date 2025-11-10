@@ -140,7 +140,6 @@ class COCGenerator:
                 p.PartNumber,
                 p.PartName,
                 p.Description,
-                p.DrawingNumber,
                 p.FSN
             FROM WorkOrders wo
             JOIN Customers c ON wo.CustomerID = c.CustomerID
@@ -415,7 +414,7 @@ class COCGenerator:
             INSERT INTO CertificatesLog (
                 CertificateNumber, WorkOrderID, CustomerID, PartNumber, 
                 Description, CustomerPONumber, Quantity, CompletionDate,
-                DrawingNumber, FSN, DocumentPath, CreatedBy
+                FSN, DocumentPath, CreatedBy
             ) VALUES (
                 %s, %s, (SELECT CustomerID FROM WorkOrders WHERE WorkOrderID = %s),
                 %s, %s, %s, %s, %s, %s, %s, %s, %s
@@ -431,7 +430,6 @@ class COCGenerator:
                 work_order_data['CustomerPONumber'],
                 work_order_data['FinalQuantity'],
                 date.today(),
-                work_order_data['DrawingNumber'],
                 work_order_data['FSN'],
                 pdf_path,
                 created_by

@@ -111,7 +111,6 @@ class POGenerator:
                 p.PartName,
                 p.Description as PartDescription,
                 p.Material,
-                p.DrawingNumber,
                 v.VendorID,
                 v.VendorName,
                 v.QuickBooksID as VendorQBID,

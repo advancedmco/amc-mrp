@@ -49,18 +49,6 @@ INSERT INTO Vendors (VendorName, ContactPhone, ContactEmail, Address, AccountNum
 -- 3. PARTS - Sample parts from Shibaura
 -- =============================================
 
-INSERT INTO Parts (PartNumber, PartName, Description, Material, DrawingNumber, FSN) VALUES
-('438S5707', 'SPACER FOR PLUNGER UNIT', 'Spacer component for plunger assembly', '4140 Steel', 'DWG-438S5707', NULL),
-('9W331301', 'COVER FOR DC500J-MS', 'Cover plate for DC500J-MS die casting machine', '1018 Steel', 'DWG-9W331301', NULL),
-('9W331104', 'GUIDE SHAFT DBS500-800MS', 'Guide shaft for DBS500-800MS series', '4140 Steel', 'DWG-9W331104', NULL),
-('Y132076', 'ELECTRODE PROBE CHROME', 'Chrome plated electrode probe', '303 Stainless', 'DWG-Y132076', NULL),
-('S571163', 'LINER FOR S-SHAFT', 'Bronze liner for S-shaft assembly', 'Bronze', 'DWG-S571163', NULL),
-('695T7002', 'LEFT HAND SCREW ROD', 'Left-hand threaded rod assembly', '4140 Steel', 'DWG-695T7002', NULL),
-('N054085', 'PISTON HEAD', 'Piston head for hydraulic cylinder', '4140 Steel', 'DWG-N054085', NULL),
-('H319551', 'SEAT C2G16', 'Valve seat for C2G16 assembly', '303 Stainless', 'DWG-H319551', NULL),
-('Y074129', 'FLANGE FOR C2G16', 'Mounting flange for C2G16', '1018 Steel', 'DWG-Y074129', NULL),
-('Y042138', 'LINK C', 'Link component for toggle mechanism', '4140 Steel', 'DWG-Y042138', NULL);
-
 -- =============================================
 -- 4. CUSTOMER PURCHASE ORDERS - Sample PO from Shibaura
 -- =============================================
@@ -253,7 +241,7 @@ INSERT INTO PurchaseOrdersLog (
 
 INSERT INTO CertificatesLog (
     CertificateNumber, WorkOrderID, CustomerID, PartNumber, Description,
-    CustomerPONumber, Quantity, CompletionDate, DrawingNumber,
+    CustomerPONumber, Quantity, CompletionDate,
     ApprovedBy, ApproverTitle, CreatedBy
 ) VALUES
 (

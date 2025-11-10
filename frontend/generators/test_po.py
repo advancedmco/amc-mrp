@@ -99,7 +99,7 @@ class POGeneratorTester:
                     ('12364289', 'HOLDER', 'Holder Assembly', '4140 Steel', 'DWG-12364289', None)
                 ]
                 cursor.executemany(
-                    "INSERT INTO Parts (PartNumber, PartName, Description, Material, DrawingNumber, FSN) VALUES (%s, %s, %s, %s, %s, %s)",
+                    "INSERT INTO Parts (PartNumber, PartName, Description, Material, FSN) VALUES (%s, %s, %s, %s, %s, %s)",
                     parts_data
                 )
                 print("   ✓ Parts inserted")

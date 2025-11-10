@@ -198,7 +198,6 @@ class MRPDashboard:
                 p.PartName,
                 p.Description as PartDescription,
                 p.Material,
-                p.DrawingNumber,
                 p.FSN
             FROM WorkOrders wo
             JOIN Customers c ON wo.CustomerID = c.CustomerID

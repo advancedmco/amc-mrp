@@ -1,0 +1,4 @@
+- Decide what to do with partname and partnumber
+- Consider retreiving all this from QBO and only making new POs from here on
+- Add internal POs to BOM process
+- Respolve redundant lines between CustomerPOLineItems,CustomerPOs, WorkOrders, etc

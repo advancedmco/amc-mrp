@@ -100,7 +100,6 @@ CREATE TABLE CustomerPOLineItems (
     Description VARCHAR(500),
     Quantity INT NOT NULL,
     Unit_Price DECIMAL(10,2),
-    Extended_Price DECIMAL(10,2),
     Due_Date DATE,
     Status ENUM('Pending', 'In Production', 'Completed', 'Shipped') DEFAULT 'Pending',
     Notes TEXT,
@@ -352,7 +351,6 @@ SELECT
     li.Description,
     li.Quantity,
     li.Unit_Price,
-    li.Extended_Price,
     li.Due_Date,
     li.Status as LineItem_Status,
     DATEDIFF(li.Due_Date, CURDATE()) as DaysUntilDue

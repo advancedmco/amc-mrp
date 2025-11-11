@@ -108,7 +108,6 @@ def parse_csv_file(csv_path: str) -> Dict[str, Dict]:
                     'description': row['Description'].strip(),
                     'quantity': int(row['Qty']),
                     'unit_price': parse_decimal(row[' Unit Price ']),
-                    'extended_price': parse_decimal(row[' Extended Price ']),
                     'due_date': parse_date(row['Due Date'])
                 }
 
@@ -212,7 +211,7 @@ def import_pos_to_database(pos_data: Dict[str, Dict]) -> Tuple[int, int]:
                         """
                         INSERT INTO CustomerPOLineItems
                         (PO_ID, Line_Number, Part_Number, Description, Quantity,
-                         Unit_Price, Extended_Price, Due_Date, Status)
+                         Unit_Price, Due_Date, Status)
                         VALUES (%s, %s, %s, %s, %s, %s, %s, %s, 'Completed')
                         """,
                         (
@@ -222,7 +221,6 @@ def import_pos_to_database(pos_data: Dict[str, Dict]) -> Tuple[int, int]:
                             line_item['description'],
                             line_item['quantity'],
                             line_item['unit_price'],
-                            line_item['extended_price'],
                             line_item['due_date']
                         )
                     )

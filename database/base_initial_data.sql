@@ -13,8 +13,8 @@ USE amcmrp;
 -- =============================================
 
 INSERT INTO Customers (CustomerID, CustomerName, QuickBooksID) VALUES
-(1,'Shibaura Machine', NULL),
-(2,'Relli Technology', NULL);
+(1,'Shibaura', NULL),
+(2,'Relli', NULL);
 
 -- =============================================
 -- 2. VENDORS - Common vendors for various processes
@@ -45,32 +45,30 @@ INSERT INTO Vendors (VendorName, ContactPhone, ContactEmail, Address, AccountNum
 -- =============================================
 -- 3. PARTS - Sample parts from Shibaura
 -- =============================================
+
 -- IMPORTING FROM CSV
+
 -- =============================================
 -- 4. CUSTOMER PURCHASE ORDERS - Sample PO from Shibaura
 -- =============================================
 
-INSERT INTO CustomerPurchaseOrders (PO_Number, CustomerID, Order_Date, Total_Value, Status) VALUES
-('43230', (SELECT CustomerID FROM Customers WHERE CustomerName = 'Shibaura'), '2018-05-16', 310.00, 'Completed'),
-('98408', (SELECT CustomerID FROM Customers WHERE CustomerName = 'Shibaura'), '2021-10-06', 4725.00, 'Completed'),
-('NAVY-2025-001', (SELECT CustomerID FROM Customers WHERE CustomerName = 'US Navy'), '2025-01-15', 15000.00, 'Open');
+-- IMPORTING FROM CSV
 
 -- =============================================
 -- 5. CUSTOMER PO LINE ITEMS - Line items for sample POs
 -- =============================================
 
-INSERT INTO CustomerPOLineItems (PO_ID, Line_Number, Part_Number, Description, Quantity, Unit_Price, Extended_Price, Due_Date, Status) VALUES
--- PO 43230
-((SELECT PO_ID FROM CustomerPurchaseOrders WHERE PO_Number = '43230'), 1, '438S5707', '438S5707 [SPACER FOR PLUNGER UNIT]', 1, 310.00, 310.00, '2018-06-13', 'Completed'),
+INSERT INTO CustomerPOLineItems (PO_ID, Line_Number, Part_Number, Description, Quantity, Unit_Price, Due_Date, Status) VALUES
+((SELECT PO_ID FROM CustomerPurchaseOrders WHERE PO_Number = '43230'), 1, '438S5707', '438S5707 [SPACER FOR PLUNGER UNIT]', 1, 310.00, '2018-06-13', 'Completed'),
 
 -- PO 98408
-((SELECT PO_ID FROM CustomerPurchaseOrders WHERE PO_Number = '98408'), 1, '9W331301', '9W331301 [COVER FOR DC500J-MS]', 1, 325.00, 325.00, '2021-11-10', 'Completed'),
-((SELECT PO_ID FROM CustomerPurchaseOrders WHERE PO_Number = '98408'), 2, '9W331104', '9W331104 [GUIDE SHAFT DBS500~800MS]', 2, 2200.00, 4400.00, '2021-11-10', 'Completed'),
+((SELECT PO_ID FROM CustomerPurchaseOrders WHERE PO_Number = '98408'), 1, '9W331301', '9W331301 [COVER FOR DC500J-MS]', 1, 325.00, '2021-11-10', 'Completed'),
+((SELECT PO_ID FROM CustomerPurchaseOrders WHERE PO_Number = '98408'), 2, '9W331104', '9W331104 [GUIDE SHAFT DBS500~800MS]', 2, 2200.00, '2021-11-10', 'Completed'),
 
 -- PO NAVY-2025-001 (Current/Open order)
-((SELECT PO_ID FROM CustomerPurchaseOrders WHERE PO_Number = 'NAVY-2025-001'), 1, 'Y132076', 'ELECTRODE PROBE CHROME', 50, 65.00, 3250.00, '2025-03-15', 'In Production'),
-((SELECT PO_ID FROM CustomerPurchaseOrders WHERE PO_Number = 'NAVY-2025-001'), 2, 'N054085', 'PISTON HEAD', 25, 1150.00, 28750.00, '2025-03-30', 'Pending'),
-((SELECT PO_ID FROM CustomerPurchaseOrders WHERE PO_Number = 'NAVY-2025-001'), 3, 'H319551', 'SEAT C2G16', 40, 2365.00, 94600.00, '2025-04-15', 'Pending');
+((SELECT PO_ID FROM CustomerPurchaseOrders WHERE PO_Number = 'NAVY-2025-001'), 1, 'Y132076', 'ELECTRODE PROBE CHROME', 50, 65.00, '2025-03-15', 'In Production'),
+((SELECT PO_ID FROM CustomerPurchaseOrders WHERE PO_Number = 'NAVY-2025-001'), 2, 'N054085', 'PISTON HEAD', 25, 1150.00, '2025-03-30', 'Pending'),
+((SELECT PO_ID FROM CustomerPurchaseOrders WHERE PO_Number = 'NAVY-2025-001'), 3, 'H319551', 'SEAT C2G16', 40, 2365.00, '2025-04-15', 'Pending');
 
 -- =============================================
 -- 6. WORK ORDERS - Sample work orders

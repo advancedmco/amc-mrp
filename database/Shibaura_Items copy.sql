@@ -1,4 +1,7 @@
-﻿INSERT INTO CustomerPOLineItems (PO_ID, Line_Number, Part_Number, Description, Quantity, Unit_Price, Due_Date, Status) VALUES
+﻿
+USE amcmrp;
+
+INSERT INTO CustomerPOLineItems (PO_ID, Line_Number, Part_Number, Description, Quantity, Unit_Price, Due_Date, Status) VALUES
 ((SELECT PO_ID FROM CustomerPurchaseOrders WHERE PO_Number = '43230'),1,'438S5707','438S5707 [SPACER FOR PLUNGER UNIT]',1,310.00,2018-06-13,'Completed'),
 ((SELECT PO_ID FROM CustomerPurchaseOrders WHERE PO_Number = '98408'),1,'9W331301','9W331301 [COVER FOR DC500J- MS]',1,325.00,2021-11-10,'Completed'),
 ((SELECT PO_ID FROM CustomerPurchaseOrders WHERE PO_Number = '98408'),2,'9W331104','9W331104 [GUIDE SHAFT DBS500~800MS]',2,2200.00,2021-11-10,'Completed'),
@@ -8,7 +11,7 @@
 ((SELECT PO_ID FROM CustomerPurchaseOrders WHERE PO_Number = '76248'),1,'N054085','N054085 [PISTON HEAD]',1,1150.00,2020-05-07,'Completed'),
 ((SELECT PO_ID FROM CustomerPurchaseOrders WHERE PO_Number = '76248'),2,'H319551','H319551 [SEAT C2G16]',1,2365.00,2020-05-07,'Completed'),
 ((SELECT PO_ID FROM CustomerPurchaseOrders WHERE PO_Number = '76248'),3,'Y074129','Y074129 [FLANGE FOR C2G16]',1,475.00,2020-05-07,'Completed'),
-((SELECT PO_ID FROM CustomerPurchaseOrders WHERE PO_Number = '28446'),1,'Y042138','Y042138 [LINK C ]',2,475.00,2017-09-15,'Completed'),
+((SELECT PO_ID FROM CustomerPurchaseOrders WHERE PO_Number = '28446'),1,'Y042138','Y042138 [LINK C]',2,475.00,2017-09-15,'Completed'),
 ((SELECT PO_ID FROM CustomerPurchaseOrders WHERE PO_Number = '28446'),2,'609T1002','609T1002 [LINK PIN BUSHING]',2,495.00,2017-09-15,'Completed'),
 ((SELECT PO_ID FROM CustomerPurchaseOrders WHERE PO_Number = '35371'),1,'Y067485','Y067485 [SPACER]',1,255.00,2018-01-22,'Completed'),
 ((SELECT PO_ID FROM CustomerPurchaseOrders WHERE PO_Number = '30547'),1,'4T122502','4T122502 [LEFT SCREW BOLT]',2,42.50,2017-11-03,'Completed'),
@@ -36,7 +39,7 @@
 ((SELECT PO_ID FROM CustomerPurchaseOrders WHERE PO_Number = '23077'),4,'611V6701','611V6701 [ELECTRODE PROBE]',5,81.75,2017-06-07,'Completed'),
 ((SELECT PO_ID FROM CustomerPurchaseOrders WHERE PO_Number = '23077'),5,'Y006298','Y006298 [BEACASE]',2,295.00,2017-06-07,'Completed'),
 ((SELECT PO_ID FROM CustomerPurchaseOrders WHERE PO_Number = '26669'),1,'4T124201','4T124201 [SPROCKET]',2,75.00,2017-07-25,'Completed'),
-((SELECT PO_ID FROM CustomerPurchaseOrders WHERE PO_Number = '110481'),1,'LMH0112','LMH0112 [TIE BAR FOR EC110SX]  ',1,2350.00,2022-09-16,'Completed'),
+((SELECT PO_ID FROM CustomerPurchaseOrders WHERE PO_Number = '110481'),1,'LMH0112','LMH0112 [TIE BAR FOR EC110SX]',1,2350.00,2022-09-16,'Completed'),
 ((SELECT PO_ID FROM CustomerPurchaseOrders WHERE PO_Number = '113188'),1,'388W45-12','388W45-12 [EJECTOR ROD SOLID TYPE FOR DC3500CS]',2,1175.00,2022-12-14,'Completed'),
 ((SELECT PO_ID FROM CustomerPurchaseOrders WHERE PO_Number = '113188'),2,'388W45-11','388W45-11 [EJECTOR ROD WIRE TYPE FOR DC3500CS]',2,1475.00,2022-12-14,'Completed'),
 ((SELECT PO_ID FROM CustomerPurchaseOrders WHERE PO_Number = '133258'),1,'H214355','H214355 [SHUT OFF NOZZLE BODY M80 X M80]',1,2050.00,2024-04-05,'Completed'),
@@ -59,7 +62,7 @@
 ((SELECT PO_ID FROM CustomerPurchaseOrders WHERE PO_Number = '151556'),3,'Y069318','Y069318 [PLUNGER ROD]',1,810.00,2025-05-09,'Completed'),
 ((SELECT PO_ID FROM CustomerPurchaseOrders WHERE PO_Number = '158200'),1,'LMT1211','LMT1211[PIN HOLDER ECSXIII i36]',1,975.00,2025-09-22,'Completed'),
 ((SELECT PO_ID FROM CustomerPurchaseOrders WHERE PO_Number = '158200'),2,'S438101','S438101 [SPLIT COLLAR IS EC SX I59 I61]',2,415.00,2025-09-22,'Completed'),
-((SELECT PO_ID FROM CustomerPurchaseOrders WHERE PO_Number = '158200'),3,'S638725','S638725 [CLAMP WEAR STRIP EC65 NON OP 1494MM X 92MM ]',1,335.00,2025-09-22,'Completed'),
+((SELECT PO_ID FROM CustomerPurchaseOrders WHERE PO_Number = '158200'),3,'S638725','S638725 [CLAMP WEAR STRIP EC65 NON OP 1494MM X 92MM]',1,335.00,2025-09-22,'Completed'),
 ((SELECT PO_ID FROM CustomerPurchaseOrders WHERE PO_Number = '110278'),1,'H303744','H303744 [EJECTOR PLATE C]',1,3025.00,2022-10-03,'Completed'),
 ((SELECT PO_ID FROM CustomerPurchaseOrders WHERE PO_Number = '113771'),1,'M174430','M174430-R1 [FLANGE L32] M174430-R1 [FLANGE L32]',2,245.00,2022-12-27,'Completed'),
 ((SELECT PO_ID FROM CustomerPurchaseOrders WHERE PO_Number = '105885'),1,'6S331401','6S331401 [ARM SHAFT FOR DTO650~800L]',2,960.00,2022-06-02,'Completed'),
@@ -1169,7 +1172,7 @@
 ((SELECT PO_ID FROM CustomerPurchaseOrders WHERE PO_Number = '135675'),8,'Y040402','Y040402 [LINER BRONZE DC350J]',4,1250.00,2024-05-20,'Completed'),
 ((SELECT PO_ID FROM CustomerPurchaseOrders WHERE PO_Number = '66577'),1,'685R1101','685R1101 [SUPPORT]',4,148.00,2019-10-03,'Completed'),
 ((SELECT PO_ID FROM CustomerPurchaseOrders WHERE PO_Number = '36426'),1,'N063996','N063996 [ROD JOINT] ',3,400.00,2018-02-19,'Completed'),
-((SELECT PO_ID FROM CustomerPurchaseOrders WHERE PO_Number = '22447'),1,'414S3701','414S3701 [SPROCKET', 414S3701],5.00,1900-03-18,'Completed',Complete)d
+((SELECT PO_ID FROM CustomerPurchaseOrders WHERE PO_Number = '22447'),1,'414S3701','414S3701 [SPROCKET', 414S3701],5.00,1900-03-18,'Completed'),
 ((SELECT PO_ID FROM CustomerPurchaseOrders WHERE PO_Number = '22447'),2,'414S3501','414S3501 [SPROCKET]',5,65.00,2017-05-26,'Completed'),
 ((SELECT PO_ID FROM CustomerPurchaseOrders WHERE PO_Number = '131349'),1,'9X352701','9X352701 [FLANGE]',3,500.00,2024-02-29,'Completed'),
 ((SELECT PO_ID FROM CustomerPurchaseOrders WHERE PO_Number = '61387'),1,'Y078433','Y078433 [SPACER]',1,45.00,2019-05-30,'Completed'),
@@ -1199,7 +1202,7 @@
 ((SELECT PO_ID FROM CustomerPurchaseOrders WHERE PO_Number = '82578'),1,'4T122501','4T122501 [RIGHT SCREW BOLT]',4,45.00,2020-10-20,'Completed'),
 ((SELECT PO_ID FROM CustomerPurchaseOrders WHERE PO_Number = '82578'),2,'9X976004','9X976004 [ROD JOINT]',2,385.00,2020-10-20,'Completed'),
 ((SELECT PO_ID FROM CustomerPurchaseOrders WHERE PO_Number = '152573'),1,'Y037685','Y037685 [SLIDE BAR] (APRIL 21ST) ',2,930.00,2025-04-21,'Completed'),
-((SELECT PO_ID FROM CustomerPurchaseOrders WHERE PO_Number = '102422'),1,'Y124126','Y124126 [BUSHING FOR INJ.', PLUNGER],1.00,1903-07-03,'Completed',Complete)d
+((SELECT PO_ID FROM CustomerPurchaseOrders WHERE PO_Number = '102422'),1,'Y124126',"Y124126 [BUSHING FOR INJ.', PLUNGER]",1.00,1903-07-03,'Completed'),
 ((SELECT PO_ID FROM CustomerPurchaseOrders WHERE PO_Number = '95038'),1,'602T2801','602T2801 [COVER]',1,48.00,2021-08-11,'Completed'),
 ((SELECT PO_ID FROM CustomerPurchaseOrders WHERE PO_Number = '70739'),1,'Y153402','Y153402 [SLIDE PLATE]',2,975.00,2019-12-25,'Completed'),
 ((SELECT PO_ID FROM CustomerPurchaseOrders WHERE PO_Number = '129658'),1,'614W8001','614W8001 [SENSOR HOLDER DHS-T (SMM USE Y122303 & Y122366) ]',7,60.00,2024-01-09,'Completed'),

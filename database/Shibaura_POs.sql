@@ -1,4 +1,7 @@
-﻿INSERT INTO CustomerPurchaseOrders (PO_Number, CustomerID, Order_Date, Total_Value, Status) VALUES
+﻿
+USE amcmrp;
+
+INSERT INTO CustomerPurchaseOrders (PO_Number, CustomerID, Order_Date, Total_Value, Status) VALUES
 ('22447',1,'2017-04-26',715.00,'Completed'),
 ('22447',1,'2017-04-26',715.00,'Completed'),
 ('22597',1,'2017-04-28',230.00,'Completed'),

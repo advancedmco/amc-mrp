@@ -7,6 +7,11 @@ services:
     container_name: mrp-db
     environment:
       MYSQL_ROOT_PASSWORD: toor
+      DB_HOST: ${DB_HOST}
+      DB_NAME: ${DB_NAME}
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD}
+      DB_PORT: ${DB_PORT}
     ports:
       - "3307:3306"
     networks:
@@ -39,7 +44,7 @@ services:
       DB_NAME: ${DB_NAME}
       DB_USER: ${DB_USER}
       DB_PASSWORD: ${DB_PASSWORD}
-      DB_PORT: 3306
+      DB_PORT: ${DB_PORT}
       FLASK_SECRET_KEY: ${FLASK_SECRET_KEY}
       BACKEND_URL: ${BACKEND_URL}
       COC_TEMPLATE_PATH: /app/templates/documents/COC Template.docx
@@ -70,7 +75,7 @@ services:
       DB_NAME: ${DB_NAME}
       DB_USER: ${DB_USER}
       DB_PASSWORD: ${DB_PASSWORD}
-      DB_PORT: 3306
+      DB_PORT: ${DB_PORT}
       # QuickBooks environment variables
       QB_CLIENT_ID: ${QB_CLIENT_ID}
       QB_CLIENT_SECRET: ${QB_CLIENT_SECRET}

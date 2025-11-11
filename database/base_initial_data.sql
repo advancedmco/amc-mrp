@@ -13,37 +13,87 @@ USE amcmrp;
 -- =============================================
 
 INSERT INTO Customers (CustomerID, CustomerName, QuickBooksID) VALUES
-(1,'Shibaura', NULL),
-(2,'Relli', NULL);
+(1,'Shibaura',NULL),
+(2,'Relli',NULL),
+(3,'Chick Fil A',NULL),
+(4,'Clayton Bishop',NULL),
+(5,'DAB Doors Co',NULL),
+(6,'DJL-SOUND',NULL),
+(7,'Element Bars',NULL),
+(8,'HFI Innovation In Stainless Steel Fabrica',NULL),
+(9,'JBR',NULL),
+(10,'Jhelsa Metal Polishing & Fabricating',NULL),
+(11,'John Catrinta',NULL),
+(12,'John J. Monaco Products Co Inc',NULL),
+(13,'LALO REPAIRS',NULL),
+(14,'Midwest Manufacturing & Dist. (Customer)',NULL),
+(15,'Mr. Chuck Berkelhamer',NULL),
+(16,'National Power Corp',NULL),
+(17,'Precise Rotary Die',NULL),
+(18,'Shibaura Machine Mexico SA de CV',NULL),
+(19,'Surface Solution',NULL),
+(20,'Trim-Tex Inc.',NULL),
+(21,'USM Recycling',NULL);
 
 -- =============================================
 -- 2. VENDORS - Common vendors for various processes
 -- =============================================
 
-INSERT INTO Vendors (VendorName, ContactPhone, ContactEmail, Address, AccountNumber) VALUES
--- Raw Material Vendors
-('Metal Supermarkets', '555-0101', 'orders@metalsupermarkets.com', '123 Industrial Way, City, ST 12345', 'MS-001'),
-('OnlineMetals.com', '555-0102', 'sales@onlinemetals.com', '456 Steel Drive, City, ST 12345', 'OM-001'),
-
--- Heat Treatment Vendors
-('Advanced Heat Treat', '555-0201', 'processing@advancedheattreat.com', '789 Furnace Blvd, City, ST 12345', 'AHT-001'),
-('Thermal Processing Inc', '555-0202', 'info@thermalprocessing.com', '321 Heat Lane, City, ST 12345', 'TPI-001'),
-
--- Plating Vendors
-('Quality Plating Services', '555-0301', 'quotes@qualityplating.com', '654 Chrome Street, City, ST 12345', 'QPS-001'),
-('DFL Finishing', '555-0302', 'contact@dflfinishing.com', '987 Finish Ave, City, ST 12345', 'DFL-001'),
-('Zinc Solutions', '555-0303', 'sales@zincsolutions.com', '147 Coating Road, City, ST 12345', 'ZS-001'),
-
--- Grinding Vendors
-('Precision Grinding Co', '555-0401', 'service@precisiongrinding.com', '258 Grind Place, City, ST 12345', 'PGC-001'),
-('Surface Solutions', '555-0402', 'info@surfacesolutions.com', '369 Polish Drive, City, ST 12345', 'SS-001'),
-
--- Machining Vendors
-('ABC Machine Shop', '555-0501', 'shop@abcmachine.com', '741 Lathe Lane, City, ST 12345', 'ABC-001'),
-('XYZ Precision Machining', '555-0502', 'quotes@xyzprecision.com', '852 Mill Street, City, ST 12345', 'XYZ-001');
+INSERT INTO Vendors (VendorName) VALUES
+("Ace Sandblast Company"),
+("Add Tool & Saw Grinding Co."),
+("Advanced Custom Metals"),
+("Alro Steel Corporation"),
+("American Screw Machine Co."),
+("Automatic Anodizing"),
+("Bayou Metal Supply, L.L.C."),
+("Belmont Plating Works, Inc."),
+("Bodycote"),
+("Chem Processing, Inc."),
+("Delta Centerless Grinding Inc"),
+("DYNA BURR"),
+("EAGLE GEAR & MFG. CO., INC."),
+("EMJ"),
+("Empire Hard Chrome"),
+("Expert Metal Finishing Inc"),
+("F&S Complete Grinding"),
+("FPM Heat Treating"),
+("General Surface Hardening"),
+("Hopkins Machine"),
+("J & C Engineering Inc"),
+("Lapham-Hickey Steel"),
+("Linde Gas"),
+("M&W GRINDING"),
+("Matrix Coatings"),
+("McMaster-Carr Supply Company"),
+("Mead Metals, Inc"),
+("Metals Depot"),
+("Metric Threaded Products"),
+("Mexicali Hard Chrome Corp"),
+("Misumi"),
+("Muck Engineering"),
+("National Bronze"),
+("National Tube Supply"),
+("Nova-Chrome Inc"),
+("Parker Steel Co"),
+("Penn Stainless"),
+("Pierce Aluminum Co"),
+("Precise Finishing Co Inc"),
+("Precise Lapping & Grinding"),
+("Precise Rotary Die Inc."),
+("Pro-Tec Metal"),
+("Rockford Grinding"),
+("Rockford Heat Treaters"),
+("Skild Plating"),
+("Synalloy"),
+("T&K Precision Grinding"),
+("Thyssenkrupp Materials"),
+("Tool and Saw Grinding"),
+("Tri-Gemini"),
+("VW Broaching Service inc");
 
 -- =============================================
--- 3. PARTS - Sample parts from Shibaura
+-- 3. PARTS - from Shibaura
 -- =============================================
 
 -- IMPORTING FROM CSV
@@ -58,23 +108,13 @@ INSERT INTO Vendors (VendorName, ContactPhone, ContactEmail, Address, AccountNum
 -- 5. CUSTOMER PO LINE ITEMS - Line items for sample POs
 -- =============================================
 
-INSERT INTO CustomerPOLineItems (PO_ID, Line_Number, Part_Number, Description, Quantity, Unit_Price, Due_Date, Status) VALUES
-((SELECT PO_ID FROM CustomerPurchaseOrders WHERE PO_Number = '43230'), 1, '438S5707', '438S5707 [SPACER FOR PLUNGER UNIT]', 1, 310.00, '2018-06-13', 'Completed'),
-
--- PO 98408
-((SELECT PO_ID FROM CustomerPurchaseOrders WHERE PO_Number = '98408'), 1, '9W331301', '9W331301 [COVER FOR DC500J-MS]', 1, 325.00, '2021-11-10', 'Completed'),
-((SELECT PO_ID FROM CustomerPurchaseOrders WHERE PO_Number = '98408'), 2, '9W331104', '9W331104 [GUIDE SHAFT DBS500~800MS]', 2, 2200.00, '2021-11-10', 'Completed'),
-
--- PO NAVY-2025-001 (Current/Open order)
-((SELECT PO_ID FROM CustomerPurchaseOrders WHERE PO_Number = 'NAVY-2025-001'), 1, 'Y132076', 'ELECTRODE PROBE CHROME', 50, 65.00, '2025-03-15', 'In Production'),
-((SELECT PO_ID FROM CustomerPurchaseOrders WHERE PO_Number = 'NAVY-2025-001'), 2, 'N054085', 'PISTON HEAD', 25, 1150.00, '2025-03-30', 'Pending'),
-((SELECT PO_ID FROM CustomerPurchaseOrders WHERE PO_Number = 'NAVY-2025-001'), 3, 'H319551', 'SEAT C2G16', 40, 2365.00, '2025-04-15', 'Pending');
+-- IMPORTING FROM CSV
 
 -- =============================================
 -- 6. WORK ORDERS - Sample work orders
 -- =============================================
 
-INSERT INTO WorkOrders (CustomerID, PartID, CustomerPONumber, QuantityOrdered, QuantityCompleted, StartDate, DueDate, Status, Priority, Notes) VALUES
+    INSERT INTO WorkOrders (CustomerID, PartID, CustomerPONumber, QuantityOrdered, QuantityCompleted, StartDate, DueDate, Status, Priority, Notes) VALUES
 -- Completed historical work order
 (
     (SELECT CustomerID FROM Customers WHERE CustomerName = 'Shibaura'),

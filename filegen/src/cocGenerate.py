@@ -138,7 +138,6 @@ class COCGenerator:
                 c.CustomerName,
                 c.QuickBooksID as CustomerQBID,
                 p.PartNumber,
-                p.PartName,
                 p.Description,
                 p.PartNumber,
                 p.FSN
@@ -427,7 +426,7 @@ class COCGenerator:
                 work_order_data['WorkOrderID'],
                 work_order_data['WorkOrderID'],  # For subquery
                 work_order_data['PartNumber'],
-                work_order_data['Description'] or work_order_data['PartName'],
+                work_order_data['Description'],
                 work_order_data['CustomerPONumber'],
                 work_order_data['FinalQuantity'],
                 date.today(),
@@ -508,7 +507,7 @@ class COCGenerator:
             # Prepare template data
             template_data = {
                 'DATE': date.today().strftime('%m-%d-%Y'),
-                'DESCRIPTION': work_order_data['Description'] or work_order_data['PartName'],
+                'DESCRIPTION': work_order_data['Description'],
                 'IAW_SPEC_DWG': work_order_data['PartNumber'],
                 'QUANTITY': work_order_data['FinalQuantity'],
                 'PO': work_order_data['CustomerPONumber']

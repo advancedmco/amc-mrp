@@ -99,7 +99,7 @@ class POGeneratorTester:
                     ('12364289', 'HOLDER', 'Holder Assembly', '4140 Steel', 'DWG-12364289', None)
                 ]
                 cursor.executemany(
-                    "INSERT INTO Parts (PartNumber, PartName, Description, Material, FSN) VALUES (%s, %s, %s, %s, %s, %s)",
+                    "INSERT INTO Parts (PartNumber, Description, Material, FSN) VALUES (%s, %s, %s, %s, %s, %s)",
                     parts_data
                 )
                 print("   ✓ Parts inserted")
@@ -319,7 +319,7 @@ class POGeneratorTester:
                 cursor = self.db_connection.cursor()
                 cursor.execute("""
                     INSERT INTO PurchaseOrdersLog (PONumber, WorkOrderID, ProcessID, VendorID, PODate, 
-                                                 PartNumber, PartName, Material, Quantity, UnitPrice, 
+                                                 PartNumber, Description, Material, Quantity, UnitPrice, 
                                                  TotalAmount, CertificationRequired, ProcessRequirements, 
                                                  Status, DocumentPath, CreatedBy)
                     VALUES (%s, 1, 1, 1, %s, 'TEST', 'TEST', 'TEST', 1, 0, 0, 0, 'TEST', 'Created', 'TEST', 'Test System')

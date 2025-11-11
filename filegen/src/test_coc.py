@@ -92,11 +92,11 @@ class COCTester:
                 print(f"  - {customer['CustomerName']} (ID: {customer['CustomerID']})")
             
             # Check parts
-            cursor.execute("SELECT PartID, PartNumber, PartName FROM Parts")
+            cursor.execute("SELECT PartID, PartNumber, Description FROM Parts")
             parts = cursor.fetchall()
             print(f"✓ Found {len(parts)} parts:")
             for part in parts:
-                print(f"  - {part['PartNumber']}: {part['PartName']} (ID: {part['PartID']})")
+                print(f"  - {part['PartNumber']}: {part['Description']} (ID: {part['PartID']})")
             
             # Check vendors
             cursor.execute("SELECT VendorID, VendorName FROM Vendors")

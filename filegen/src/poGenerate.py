@@ -108,8 +108,7 @@ class POGenerator:
                 wo.WorkOrderID,
                 wo.CustomerPONumber,
                 p.PartNumber,
-                p.PartName,
-                p.Description as PartDescription,
+                p.Description,
                 p.Material,
                 v.VendorID,
                 v.VendorName,
@@ -368,7 +367,7 @@ class POGenerator:
             insert_query = """
             INSERT INTO PurchaseOrdersLog (
                 PONumber, WorkOrderID, ProcessID, VendorID, PODate,
-                PartNumber, PartName, Material, Quantity, UnitPrice, TotalAmount,
+                PartNumber, Description, Material, Quantity, UnitPrice, TotalAmount,
                 CertificationRequired, ProcessRequirements, Status, DocumentPath,
                 CreatedBy
             ) VALUES (
@@ -383,7 +382,7 @@ class POGenerator:
                 process_data['VendorID'],
                 date.today(),
                 process_data['PartNumber'],
-                process_data['PartName'],
+                process_data['Description'],
                 process_data['Material'],
                 process_data['Quantity'],
                 process_data['EstimatedCost'],

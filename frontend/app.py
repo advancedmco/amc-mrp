@@ -75,7 +75,7 @@ class MRPDashboard:
                 wo.PaymentStatus,
                 c.CustomerName,
                 p.PartNumber,
-                p.PartName,
+                p.Description,
                 p.Material,
                 DATEDIFF(wo.DueDate, CURDATE()) as DaysUntilDue
             FROM WorkOrders wo
@@ -114,7 +114,7 @@ class MRPDashboard:
                 wo.PaymentStatus,
                 c.CustomerName,
                 p.PartNumber,
-                p.PartName,
+                p.Description,
                 p.Material,
                 cl.CertificateNumber,
                 cl.DocumentPath as COCPath
@@ -156,7 +156,7 @@ class MRPDashboard:
                 wo.PaymentStatus,
                 c.CustomerName,
                 p.PartNumber,
-                p.PartName,
+                p.Description,
                 p.Material,
                 cl.CertificateNumber,
                 cl.DocumentPath as COCPath
@@ -195,8 +195,7 @@ class MRPDashboard:
                 c.CustomerName,
                 c.QuickBooksID as CustomerQBID,
                 p.PartNumber,
-                p.PartName,
-                p.Description as PartDescription,
+                p.Description,
                 p.Material,
                 p.FSN
             FROM WorkOrders wo
@@ -445,7 +444,7 @@ class MRPDashboard:
                 wo.PaymentStatus,
                 c.CustomerName,
                 p.PartNumber,
-                p.PartName,
+                p.Description,
                 p.Material,
                 DATEDIFF(wo.DueDate, CURDATE()) as DaysUntilDue
             FROM WorkOrders wo
@@ -470,7 +469,7 @@ class MRPDashboard:
                     wo.CustomerPONumber LIKE %s OR
                     c.CustomerName LIKE %s OR
                     p.PartNumber LIKE %s OR
-                    p.PartName LIKE %s
+                    p.Description LIKE %s
                 )"""
                 search_param = f"%{search}%"
                 params.extend([search_param] * 5)
@@ -509,7 +508,7 @@ class MRPDashboard:
                     wo.CustomerPONumber LIKE %s OR
                     c.CustomerName LIKE %s OR
                     p.PartNumber LIKE %s OR
-                    p.PartName LIKE %s
+                    p.Description LIKE %s
                 )"""
 
             cursor.execute(count_query, params[:-2])  # Exclude limit/offset

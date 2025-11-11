@@ -65,7 +65,6 @@ CREATE TABLE Vendors (
 CREATE TABLE Parts (
     PartID INT AUTO_INCREMENT PRIMARY KEY,
     PartNumber VARCHAR(100) NOT NULL UNIQUE,
-    PartName VARCHAR(200) NOT NULL,
     Description TEXT,
     Material VARCHAR(100),
     FSN VARCHAR(50), -- Federal Stock Number
@@ -191,7 +190,7 @@ CREATE TABLE PurchaseOrdersLog (
     ExpectedDeliveryDate DATE,
     ActualDeliveryDate DATE,
     PartNumber VARCHAR(100),
-    PartName VARCHAR(200),
+    Description TEXT,
     Material VARCHAR(100),
     Quantity INT NOT NULL,
     UnitPrice DECIMAL(10,2),
@@ -306,7 +305,7 @@ SELECT
     wo.WorkOrderID,
     c.CustomerName,
     p.PartNumber,
-    p.PartName,
+    p.Description,
     wo.CustomerPONumber,
     wo.QuantityOrdered,
     wo.QuantityCompleted,

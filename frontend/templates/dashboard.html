@@ -332,7 +332,7 @@
                                     <td>{{ order.CustomerName }}</td>
                                     <td>
                                         <strong>{{ order.PartNumber }}</strong>
-                                        <br><small class="text-muted">{{ order.PartName }}</small>
+                                        <br><small class="text-muted">{{ order.Description }}</small>
                                     </td>
                                     <td>{{ order.Material or 'N/A' }}</td>
                                     <td>
@@ -435,7 +435,7 @@
                                 <td>{{ order.CustomerName }}</td>
                                 <td>
                                     <strong>{{ order.PartNumber }}</strong>
-                                    <br><small class="text-muted">{{ order.PartName }}</small>
+                                    <br><small class="text-muted">{{ order.Description }}</small>
                                 </td>
                                 <td>{{ order.QuantityCompleted }}</td>
                                 <td>
@@ -892,7 +892,7 @@ function updateOrdersTable(orders) {
             <td>${order.CustomerName}</td>
             <td>
                 <strong>${order.PartNumber}</strong>
-                <br><small class="text-muted">${order.PartName}</small>
+                <br><small class="text-muted">${order.Description}</small>
             </td>
             <td>${order.Material || 'N/A'}</td>
             <td>
@@ -989,7 +989,7 @@ function viewOrderDetails(workOrderId) {
                         <h6>Part Information</h6>
                         <table class="table table-sm">
                             <tr><td><strong>Part Number:</strong></td><td>${data.PartNumber}</td></tr>
-                            <tr><td><strong>Part Name:</strong></td><td>${data.PartName}</td></tr>
+                            <tr><td><strong>Part Name:</strong></td><td>${data.Description}</td></tr>
                             <tr><td><strong>Material:</strong></td><td>${data.Material || 'N/A'}</td></tr>
                             <tr><td><strong>Quantity:</strong></td><td>${data.QuantityCompleted}/${data.QuantityOrdered}</td></tr>
                         </table>
@@ -1080,7 +1080,7 @@ function showCreatePOModal(workOrderId) {
 
             let html = `
                 <div class="mb-3">
-                    <h6>Work Order: ${data.WorkOrderNumber} - ${data.PartName}</h6>
+                    <h6>Work Order: ${data.WorkOrderNumber} - ${data.Description}</h6>
                     <p class="text-muted">Select processes to create purchase orders:</p>
                 </div>
                 <div class="table-responsive">

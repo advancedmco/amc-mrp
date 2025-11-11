@@ -187,7 +187,7 @@ INSERT INTO BOMProcesses (BOMID, ProcessType, ProcessName, VendorID, Quantity, U
 
 INSERT INTO PurchaseOrdersLog (
     PONumber, WorkOrderID, ProcessID, VendorID, PODate, ExpectedDeliveryDate,
-    PartNumber, PartName, Material, Quantity, UnitPrice, TotalAmount,
+    PartNumber, Description, Material, Quantity, UnitPrice, TotalAmount,
     CertificationRequired, ProcessRequirements, Status, CreatedBy
 ) VALUES
 -- PO for 303 Stainless for Navy electrode probes

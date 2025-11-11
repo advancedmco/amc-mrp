@@ -12,12 +12,9 @@ USE amcmrp;
 -- 1. CUSTOMERS - Base customer records
 -- =============================================
 
-INSERT INTO Customers (CustomerName, QuickBooksID) VALUES
-('Shibaura', NULL),
-('US Navy', NULL),
-('US Army', NULL),
-('General Dynamics', NULL),
-('Northrop Grumman', NULL);
+INSERT INTO Customers (CustomerID, CustomerName, QuickBooksID) VALUES
+(1,'Shibaura Machine', NULL),
+(2,'Relli Technology', NULL);
 
 -- =============================================
 -- 2. VENDORS - Common vendors for various processes
@@ -48,7 +45,7 @@ INSERT INTO Vendors (VendorName, ContactPhone, ContactEmail, Address, AccountNum
 -- =============================================
 -- 3. PARTS - Sample parts from Shibaura
 -- =============================================
-
+-- IMPORTING FROM CSV
 -- =============================================
 -- 4. CUSTOMER PURCHASE ORDERS - Sample PO from Shibaura
 -- =============================================

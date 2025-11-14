@@ -13,6 +13,7 @@ import requests
 from requests.exceptions import Timeout, ConnectionError, RequestException
 import pymysql
 from pymysql.cursors import DictCursor
+from importers import ImportCoordinator
 
 # Load environment variables
 load_dotenv()
@@ -1130,6 +1131,275 @@ def circuit_breaker_reset():
         'success': True,
         'message': 'Circuit breaker has been reset',
         'state': circuit_breaker['state']
+    })
+
+# =============================================
+# DATA IMPORT ENDPOINTS
+# =============================================
+
+@app.route('/api/import/quickbooks', methods=['POST'])
+def import_from_quickbooks():
+    """
+    Import data from QuickBooks cached data.
+
+    Request body (optional):
+    {
+        "entities": ["customers", "vendors", "items", "invoices"],  // Specific entities to import
+        "options": {
+            "update_existing": true,
+            "mark_complete": true,
+            "payment_received": true
+        }
+    }
+    """
+    try:
+        request_data = request.get_json() or {}
+        entities_to_import = request_data.get('entities', ['customers', 'vendors', 'items', 'invoices'])
+        options = request_data.get('options', {})
+
+        # Prepare QuickBooks data
+        qb_data = {}
+
+        if 'customers' in entities_to_import:
+            qb_data['customers'] = cached_data.get('customers', [])
+
+        if 'vendors' in entities_to_import:
+            qb_data['vendors'] = cached_data.get('vendors', [])
+
+        if 'items' in entities_to_import:
+            qb_data['items'] = cached_data.get('items', [])
+
+        if 'invoices' in entities_to_import:
+            qb_data['invoices'] = cached_data.get('invoices', [])
+
+        # Check if we have any data
+        total_records = sum(len(data) for data in qb_data.values())
+        if total_records == 0:
+            return jsonify({
+                'error': 'No data available',
+                'message': 'QuickBooks cache is empty. Please refresh cache or authenticate first.'
+            }), 400
+
+        # Initialize coordinator
+        coordinator = ImportCoordinator(DB_CONFIG, logger)
+
+        # Set default options
+        import_options = {
+            'vendors': {'update_existing': options.get('update_existing', True)},
+            'customers': {'update_existing': options.get('update_existing', True)},
+            'items': {'update_existing': options.get('update_existing', True)},
+            'invoices': {
+                'mark_as_complete': options.get('mark_complete', True),
+                'set_payment_received': options.get('payment_received', True),
+                'create_missing_customers': True,
+                'create_missing_parts': True
+            }
+        }
+
+        # Perform import
+        logger.info(f"Starting QuickBooks data import: {entities_to_import}")
+        results = coordinator.import_all_from_quickbooks(qb_data, **import_options)
+
+        return jsonify({
+            'success': True,
+            'message': 'Import completed',
+            'results': results
+        })
+
+    except Exception as e:
+        logger.error(f"Error during QuickBooks import: {e}", exc_info=True)
+        return jsonify({
+            'error': 'Import failed',
+            'message': str(e)
+        }), 500
+
+
+@app.route('/api/import/vendors', methods=['POST'])
+def import_vendors():
+    """
+    Import vendor data.
+
+    Request body:
+    {
+        "data": [...],  // Array of vendor records
+        "options": {
+            "update_existing": true
+        }
+    }
+    """
+    try:
+        request_data = request.get_json()
+        if not request_data or 'data' not in request_data:
+            return jsonify({
+                'error': 'Invalid request',
+                'message': 'Request body must contain "data" field with vendor records'
+            }), 400
+
+        vendor_data = request_data['data']
+        options = request_data.get('options', {'update_existing': True})
+
+        coordinator = ImportCoordinator(DB_CONFIG, logger)
+        results = coordinator.import_vendors(vendor_data, **options)
+
+        return jsonify({
+            'success': True,
+            'message': 'Vendor import completed',
+            'results': results
+        })
+
+    except Exception as e:
+        logger.error(f"Error during vendor import: {e}", exc_info=True)
+        return jsonify({
+            'error': 'Import failed',
+            'message': str(e)
+        }), 500
+
+
+@app.route('/api/import/customers', methods=['POST'])
+def import_customers():
+    """
+    Import customer data.
+
+    Request body:
+    {
+        "data": [...],  // Array of customer records
+        "options": {
+            "update_existing": true
+        }
+    }
+    """
+    try:
+        request_data = request.get_json()
+        if not request_data or 'data' not in request_data:
+            return jsonify({
+                'error': 'Invalid request',
+                'message': 'Request body must contain "data" field with customer records'
+            }), 400
+
+        customer_data = request_data['data']
+        options = request_data.get('options', {'update_existing': True})
+
+        coordinator = ImportCoordinator(DB_CONFIG, logger)
+        results = coordinator.import_customers(customer_data, **options)
+
+        return jsonify({
+            'success': True,
+            'message': 'Customer import completed',
+            'results': results
+        })
+
+    except Exception as e:
+        logger.error(f"Error during customer import: {e}", exc_info=True)
+        return jsonify({
+            'error': 'Import failed',
+            'message': str(e)
+        }), 500
+
+
+@app.route('/api/import/products', methods=['POST'])
+def import_products():
+    """
+    Import product/part data.
+
+    Request body:
+    {
+        "data": [...],  // Array of product records
+        "options": {
+            "update_existing": true,
+            "filter_inventory": false,
+            "filter_non_inventory": false
+        }
+    }
+    """
+    try:
+        request_data = request.get_json()
+        if not request_data or 'data' not in request_data:
+            return jsonify({
+                'error': 'Invalid request',
+                'message': 'Request body must contain "data" field with product records'
+            }), 400
+
+        product_data = request_data['data']
+        options = request_data.get('options', {'update_existing': True})
+
+        coordinator = ImportCoordinator(DB_CONFIG, logger)
+        results = coordinator.import_products(product_data, **options)
+
+        return jsonify({
+            'success': True,
+            'message': 'Product import completed',
+            'results': results
+        })
+
+    except Exception as e:
+        logger.error(f"Error during product import: {e}", exc_info=True)
+        return jsonify({
+            'error': 'Import failed',
+            'message': str(e)
+        }), 500
+
+
+@app.route('/api/import/invoices', methods=['POST'])
+def import_invoices():
+    """
+    Import invoice data and create/update work orders.
+
+    Request body:
+    {
+        "data": [...],  // Array of invoice records
+        "options": {
+            "mark_as_complete": true,
+            "set_payment_received": true,
+            "create_missing_customers": true,
+            "create_missing_parts": true
+        }
+    }
+    """
+    try:
+        request_data = request.get_json()
+        if not request_data or 'data' not in request_data:
+            return jsonify({
+                'error': 'Invalid request',
+                'message': 'Request body must contain "data" field with invoice records'
+            }), 400
+
+        invoice_data = request_data['data']
+        options = request_data.get('options', {
+            'mark_as_complete': True,
+            'set_payment_received': True,
+            'create_missing_customers': True,
+            'create_missing_parts': True
+        })
+
+        coordinator = ImportCoordinator(DB_CONFIG, logger)
+        results = coordinator.import_invoices(invoice_data, **options)
+
+        return jsonify({
+            'success': True,
+            'message': 'Invoice import completed',
+            'results': results
+        })
+
+    except Exception as e:
+        logger.error(f"Error during invoice import: {e}", exc_info=True)
+        return jsonify({
+            'error': 'Import failed',
+            'message': str(e)
+        }), 500
+
+
+@app.route('/api/import/status', methods=['GET'])
+def import_status():
+    """Get import capabilities and status."""
+    return jsonify({
+        'available_importers': ['vendors', 'customers', 'products', 'invoices'],
+        'quickbooks_cache_status': {
+            'customers': len(cached_data.get('customers', [])),
+            'vendors': len(cached_data.get('vendors', [])),
+            'items': len(cached_data.get('items', [])),
+            'invoices': len(cached_data.get('invoices', []))
+        },
+        'database_connected': get_db_connection() is not None
     })
 
 # OAuth callback route (for initial setup)

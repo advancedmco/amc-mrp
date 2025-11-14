@@ -116,8 +116,7 @@ CREATE TABLE WorkOrders (
     WorkOrderID INT AUTO_INCREMENT PRIMARY KEY,
     CustomerID INT NOT NULL,
     PartID INT NOT NULL,
-    CustomerPONumber VARCHAR(100),
-    QuantityOrdered INT NOT NULL,
+    CustomerPOLineItemID INT,
     QuantityCompleted INT DEFAULT 0,
     StartDate DATE,
     DueDate DATE,
@@ -130,7 +129,8 @@ CREATE TABLE WorkOrders (
     UpdatedDate TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     FOREIGN KEY (CustomerID) REFERENCES Customers(CustomerID),
     FOREIGN KEY (PartID) REFERENCES Parts(PartID),
-    INDEX idx_customer_po (CustomerPONumber),
+    FOREIGN KEY (CustomerPOLineItemID) REFERENCES CustomerPOLineItems(LineItem_ID),
+    INDEX idx_customer_po_lineitem (CustomerPOLineItemID),
     INDEX idx_status (Status)
 );
 
@@ -306,8 +306,8 @@ SELECT
     c.CustomerName,
     p.PartNumber,
     p.Description,
-    wo.CustomerPONumber,
-    wo.QuantityOrdered,
+    cpo.PO_Number as CustomerPONumber,
+    li.Quantity as QuantityOrdered,
     wo.QuantityCompleted,
     wo.Status,
     wo.Priority,
@@ -315,7 +315,9 @@ SELECT
     DATEDIFF(wo.DueDate, CURDATE()) as DaysUntilDue
 FROM WorkOrders wo
 JOIN Customers c ON wo.CustomerID = c.CustomerID
-JOIN Parts p ON wo.PartID = p.PartID;
+JOIN Parts p ON wo.PartID = p.PartID
+LEFT JOIN CustomerPOLineItems li ON wo.CustomerPOLineItemID = li.LineItem_ID
+LEFT JOIN CustomerPurchaseOrders cpo ON li.PO_ID = cpo.PO_ID;
 
 -- View for BOM with Process Details
 CREATE VIEW vw_BOMDetails AS

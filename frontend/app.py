@@ -523,6 +523,247 @@ class MRPDashboard:
             logger.error(f"Failed to get filtered orders: {e}")
             return {'orders': [], 'total': 0}
 
+    def get_customers(self):
+        """Get all customers"""
+        try:
+            conn = self.get_db_connection()
+            cursor = conn.cursor(dictionary=True)
+
+            cursor.execute("""
+                SELECT CustomerID, CustomerName, QuickBooksID
+                FROM Customers
+                ORDER BY CustomerName
+            """)
+            customers = cursor.fetchall()
+
+            cursor.close()
+            conn.close()
+
+            return customers
+
+        except Error as e:
+            logger.error(f"Failed to get customers: {e}")
+            return []
+
+    def get_parts(self):
+        """Get all parts"""
+        try:
+            conn = self.get_db_connection()
+            cursor = conn.cursor(dictionary=True)
+
+            cursor.execute("""
+                SELECT PartID, PartNumber, Description, Material, FSN
+                FROM Parts
+                ORDER BY PartNumber
+            """)
+            parts = cursor.fetchall()
+
+            cursor.close()
+            conn.close()
+
+            return parts
+
+        except Error as e:
+            logger.error(f"Failed to get parts: {e}")
+            return []
+
+    def get_vendors(self):
+        """Get all vendors"""
+        try:
+            conn = self.get_db_connection()
+            cursor = conn.cursor(dictionary=True)
+
+            cursor.execute("""
+                SELECT VendorID, VendorName, QuickBooksID
+                FROM Vendors
+                ORDER BY VendorName
+            """)
+            vendors = cursor.fetchall()
+
+            cursor.close()
+            conn.close()
+
+            return vendors
+
+        except Error as e:
+            logger.error(f"Failed to get vendors: {e}")
+            return []
+
+    def get_customer_pos(self):
+        """Get all customer purchase orders"""
+        try:
+            conn = self.get_db_connection()
+            cursor = conn.cursor(dictionary=True)
+
+            cursor.execute("""
+                SELECT
+                    cpo.CustomerPOID,
+                    cpo.PONumber,
+                    cpo.PODate,
+                    cpo.DueDate,
+                    c.CustomerName
+                FROM CustomerPurchaseOrders cpo
+                JOIN Customers c ON cpo.CustomerID = c.CustomerID
+                ORDER BY cpo.PODate DESC
+            """)
+            customer_pos = cursor.fetchall()
+
+            cursor.close()
+            conn.close()
+
+            return customer_pos
+
+        except Error as e:
+            logger.error(f"Failed to get customer POs: {e}")
+            return []
+
+    def get_all_workorders(self):
+        """Get all workorders"""
+        try:
+            conn = self.get_db_connection()
+            cursor = conn.cursor(dictionary=True)
+
+            cursor.execute("""
+                SELECT
+                    wo.WorkOrderID,
+                    wo.WorkOrderNumber,
+                    p.PartNumber,
+                    p.Description,
+                    c.CustomerName
+                FROM WorkOrders wo
+                JOIN Parts p ON wo.PartID = p.PartID
+                JOIN Customers c ON wo.CustomerID = c.CustomerID
+                ORDER BY wo.CreatedDate DESC
+            """)
+            workorders = cursor.fetchall()
+
+            cursor.close()
+            conn.close()
+
+            return workorders
+
+        except Error as e:
+            logger.error(f"Failed to get workorders: {e}")
+            return []
+
+    def add_customer_po(self, po_number, customer_id, po_date, due_date=None, notes=None, pdf_path=None):
+        """Add a new customer purchase order"""
+        try:
+            conn = self.get_db_connection()
+            cursor = conn.cursor()
+
+            query = """
+            INSERT INTO CustomerPurchaseOrders
+            (PONumber, CustomerID, PODate, DueDate, Notes, DocumentPath, CreatedDate, UpdatedDate)
+            VALUES (%s, %s, %s, %s, %s, %s, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+            """
+
+            cursor.execute(query, (po_number, customer_id, po_date, due_date, notes, pdf_path))
+            conn.commit()
+
+            cursor.close()
+            conn.close()
+
+            return True, 'Customer PO created successfully'
+
+        except Error as e:
+            logger.error(f"Failed to add customer PO: {e}")
+            return False, str(e)
+
+    def add_workorder(self, work_order_number, customer_id, part_id, customer_po_id=None,
+                     quantity_ordered=1, start_date=None, due_date=None, status='Idle',
+                     priority='Normal', notes=None):
+        """Add a new workorder"""
+        try:
+            conn = self.get_db_connection()
+            cursor = conn.cursor()
+
+            # Check if CustomerPOID is valid
+            if customer_po_id and customer_po_id != '':
+                # Get CustomerPONumber from CustomerPOID
+                cursor.execute("SELECT PONumber FROM CustomerPurchaseOrders WHERE CustomerPOID = %s", (customer_po_id,))
+                result = cursor.fetchone()
+                customer_po_number = result[0] if result else None
+            else:
+                customer_po_id = None
+                customer_po_number = None
+
+            query = """
+            INSERT INTO WorkOrders
+            (WorkOrderNumber, CustomerID, PartID, CustomerPOID, CustomerPONumber,
+             QuantityOrdered, QuantityCompleted, StartDate, DueDate, Status, Priority,
+             Notes, CreatedDate, UpdatedDate)
+            VALUES (%s, %s, %s, %s, %s, %s, 0, %s, %s, %s, %s, %s, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+            """
+
+            cursor.execute(query, (work_order_number, customer_id, part_id, customer_po_id,
+                                 customer_po_number, quantity_ordered, start_date, due_date,
+                                 status, priority, notes))
+            conn.commit()
+
+            work_order_id = cursor.lastrowid
+
+            # Create BOM entry for this workorder
+            bom_query = """
+            INSERT INTO BOM (WorkOrderID, CreatedDate, UpdatedDate)
+            VALUES (%s, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+            """
+            cursor.execute(bom_query, (work_order_id,))
+            conn.commit()
+
+            cursor.close()
+            conn.close()
+
+            return True, 'Workorder created successfully'
+
+        except Error as e:
+            logger.error(f"Failed to add workorder: {e}")
+            return False, str(e)
+
+    def add_bom_process(self, work_order_id, process_type, process_name, vendor_id=None,
+                       quantity=1, estimated_cost=None, status='Pending',
+                       certification_required=0, notes=None):
+        """Add a new BOM process"""
+        try:
+            conn = self.get_db_connection()
+            cursor = conn.cursor()
+
+            # Get or create BOM for this workorder
+            cursor.execute("SELECT BOMID FROM BOM WHERE WorkOrderID = %s", (work_order_id,))
+            result = cursor.fetchone()
+
+            if result:
+                bom_id = result[0]
+            else:
+                # Create BOM if it doesn't exist
+                cursor.execute("""
+                    INSERT INTO BOM (WorkOrderID, CreatedDate, UpdatedDate)
+                    VALUES (%s, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+                """, (work_order_id,))
+                conn.commit()
+                bom_id = cursor.lastrowid
+
+            # Add BOM process
+            query = """
+            INSERT INTO BOMProcesses
+            (BOMID, ProcessType, ProcessName, VendorID, Quantity, EstimatedCost,
+             Status, CertificationRequired, Notes, CreatedDate, UpdatedDate)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+            """
+
+            cursor.execute(query, (bom_id, process_type, process_name, vendor_id,
+                                 quantity, estimated_cost, status, certification_required, notes))
+            conn.commit()
+
+            cursor.close()
+            conn.close()
+
+            return True, 'BOM process created successfully'
+
+        except Error as e:
+            logger.error(f"Failed to add BOM process: {e}")
+            return False, str(e)
+
 # Initialize dashboard
 dashboard = MRPDashboard()
 
@@ -903,6 +1144,178 @@ def api_qb_invoices():
     except requests.exceptions.RequestException as e:
         logger.error(f"Error getting QB invoices: {e}")
         return jsonify({'error': 'Cannot connect to QuickBooks backend', 'details': str(e)}), 503
+
+@app.route('/api/customers')
+def api_customers():
+    """Get all customers"""
+    try:
+        customers = dashboard.get_customers()
+        return jsonify({'customers': customers})
+    except Exception as e:
+        logger.error(f"Error getting customers: {e}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/parts')
+def api_parts():
+    """Get all parts"""
+    try:
+        parts = dashboard.get_parts()
+        return jsonify({'parts': parts})
+    except Exception as e:
+        logger.error(f"Error getting parts: {e}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/vendors')
+def api_vendors():
+    """Get all vendors"""
+    try:
+        vendors = dashboard.get_vendors()
+        return jsonify({'vendors': vendors})
+    except Exception as e:
+        logger.error(f"Error getting vendors: {e}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/customer_pos')
+def api_customer_pos():
+    """Get all customer purchase orders"""
+    try:
+        customer_pos = dashboard.get_customer_pos()
+        return jsonify({'customer_pos': customer_pos})
+    except Exception as e:
+        logger.error(f"Error getting customer POs: {e}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/workorders')
+def api_workorders():
+    """Get all workorders"""
+    try:
+        workorders = dashboard.get_all_workorders()
+        return jsonify({'workorders': workorders})
+    except Exception as e:
+        logger.error(f"Error getting workorders: {e}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/customer_po/add', methods=['POST'])
+def api_add_customer_po():
+    """Add a new customer purchase order with optional PDF upload"""
+    try:
+        po_number = request.form.get('po_number')
+        customer_id = request.form.get('customer_id')
+        po_date = request.form.get('po_date')
+        due_date = request.form.get('due_date')
+        notes = request.form.get('notes')
+
+        if not po_number or not customer_id or not po_date:
+            return jsonify({'error': 'Missing required fields'}), 400
+
+        # Handle file upload
+        pdf_path = None
+        if 'po_file' in request.files:
+            file = request.files['po_file']
+            if file and file.filename:
+                # Save file to uploads directory
+                upload_dir = os.path.join(os.path.dirname(__file__), '..', 'uploads', 'customer_pos')
+                os.makedirs(upload_dir, exist_ok=True)
+
+                # Generate unique filename
+                timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+                filename = f"{po_number}_{timestamp}.pdf"
+                file_path = os.path.join(upload_dir, filename)
+                file.save(file_path)
+                pdf_path = os.path.join('uploads', 'customer_pos', filename)
+
+        # Add to database
+        success, message = dashboard.add_customer_po(
+            po_number=po_number,
+            customer_id=customer_id,
+            po_date=po_date,
+            due_date=due_date,
+            notes=notes,
+            pdf_path=pdf_path
+        )
+
+        if success:
+            return jsonify({
+                'success': True,
+                'message': message
+            })
+        else:
+            return jsonify({'error': message}), 500
+
+    except Exception as e:
+        logger.error(f"Error adding customer PO: {e}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/workorder/add', methods=['POST'])
+def api_add_workorder():
+    """Add a new workorder"""
+    try:
+        data = request.get_json()
+
+        required_fields = ['work_order_number', 'customer_id', 'part_id', 'quantity_ordered', 'due_date', 'status', 'priority']
+        for field in required_fields:
+            if field not in data:
+                return jsonify({'error': f'Missing required field: {field}'}), 400
+
+        success, message = dashboard.add_workorder(
+            work_order_number=data['work_order_number'],
+            customer_id=data['customer_id'],
+            part_id=data['part_id'],
+            customer_po_id=data.get('customer_po_id'),
+            quantity_ordered=data['quantity_ordered'],
+            start_date=data.get('start_date'),
+            due_date=data['due_date'],
+            status=data['status'],
+            priority=data['priority'],
+            notes=data.get('notes')
+        )
+
+        if success:
+            return jsonify({
+                'success': True,
+                'message': message
+            })
+        else:
+            return jsonify({'error': message}), 500
+
+    except Exception as e:
+        logger.error(f"Error adding workorder: {e}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/bom/add', methods=['POST'])
+def api_add_bom():
+    """Add a new BOM process"""
+    try:
+        data = request.get_json()
+
+        required_fields = ['work_order_id', 'process_type', 'process_name', 'quantity', 'status']
+        for field in required_fields:
+            if field not in data:
+                return jsonify({'error': f'Missing required field: {field}'}), 400
+
+        success, message = dashboard.add_bom_process(
+            work_order_id=data['work_order_id'],
+            process_type=data['process_type'],
+            process_name=data['process_name'],
+            vendor_id=data.get('vendor_id'),
+            quantity=data['quantity'],
+            estimated_cost=data.get('estimated_cost'),
+            status=data['status'],
+            certification_required=data.get('certification_required', 0),
+            notes=data.get('notes')
+        )
+
+        if success:
+            return jsonify({
+                'success': True,
+                'message': message
+            })
+        else:
+            return jsonify({'error': message}), 500
+
+    except Exception as e:
+        logger.error(f"Error adding BOM process: {e}")
+        return jsonify({'error': str(e)}), 500
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, debug=True)

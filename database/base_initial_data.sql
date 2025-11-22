@@ -2353,12 +2353,12 @@ INSERT INTO CustomerPurchaseOrders (PO_Number, CustomerID, Order_Date, Total_Val
 -- 6. WORK ORDERS - Sample work orders
 -- =============================================
 
-INSERT INTO WorkOrders (CustomerID, PartID, CustomerPONumber, QuantityOrdered, QuantityCompleted, StartDate, DueDate, Status, Priority, Notes) VALUES
+INSERT INTO WorkOrders (CustomerID, PartID, CustomerPOID, QuantityOrdered, QuantityCompleted, StartDate, DueDate, Status, Priority, Notes) VALUES
 -- Completed historical work order
 (
     (SELECT CustomerID FROM Customers WHERE CustomerName = 'Shibaura'),
     (SELECT PartID FROM Parts WHERE PartNumber = '438S5707'),
-    '43230',
+    (SELECT PO_ID FROM CustomerPurchaseOrders WHERE PO_Number = '35052'),
     1,
     1,
     '2018-05-20',
@@ -2372,7 +2372,7 @@ INSERT INTO WorkOrders (CustomerID, PartID, CustomerPONumber, QuantityOrdered, Q
 (
     (SELECT CustomerID FROM Customers WHERE CustomerName = 'Shibaura'),
     (SELECT PartID FROM Parts WHERE PartNumber = '451R0101'),
-    'NAVY-2025-001',
+    (SELECT PO_ID FROM CustomerPurchaseOrders WHERE PO_Number = '47461'),
     50,
     0,
     '2025-01-20',
@@ -2386,14 +2386,14 @@ INSERT INTO WorkOrders (CustomerID, PartID, CustomerPONumber, QuantityOrdered, Q
 (
     (SELECT CustomerID FROM Customers WHERE CustomerName = 'Shibaura'),
     (SELECT PartID FROM Parts WHERE PartNumber = '363X1402'),
-    'NAVY-2025-001',
+    NULL,
     25,
     0,
     '2025-02-01',
     '2025-03-30',
     'Pending Material',
     'High',
-    'Navy contract - Waiting for 4140 steel stock'
+    'Navy contract - Waiting for 4140 steel stock - PO: NAVY-2025-001'
 );
 
 -- =============================================

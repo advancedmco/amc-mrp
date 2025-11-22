@@ -64,7 +64,7 @@ class MRPDashboard:
             query = """
             SELECT 
                 wo.WorkOrderID,
-                wo.CustomerPONumber,
+                cpo.PO_Number as CustomerPONumber,
                 wo.QuantityOrdered,
                 wo.QuantityCompleted,
                 wo.StartDate,
@@ -80,6 +80,7 @@ class MRPDashboard:
             FROM WorkOrders wo
             JOIN Customers c ON wo.CustomerID = c.CustomerID
             JOIN Parts p ON wo.PartID = p.PartID
+            LEFT JOIN CustomerPurchaseOrders cpo ON wo.CustomerPOID = cpo.PO_ID
             WHERE wo.Status != 'Completed' AND wo.Status != 'Shipped'
             ORDER BY wo.CreatedDate DESC
             """
@@ -105,7 +106,7 @@ class MRPDashboard:
             query = """
             SELECT 
                 wo.WorkOrderID,
-                wo.CustomerPONumber,
+                cpo.PO_Number as CustomerPONumber,
                 wo.QuantityOrdered,
                 wo.QuantityCompleted,
                 wo.CompletionDate,
@@ -119,6 +120,7 @@ class MRPDashboard:
             FROM WorkOrders wo
             JOIN Customers c ON wo.CustomerID = c.CustomerID
             JOIN Parts p ON wo.PartID = p.PartID
+            LEFT JOIN CustomerPurchaseOrders cpo ON wo.CustomerPOID = cpo.PO_ID
             LEFT JOIN CertificatesLog cl ON wo.WorkOrderID = cl.WorkOrderID
             WHERE wo.Status IN ('Completed', 'Shipped')
             AND wo.CompletionDate >= DATE_SUB(NOW(), INTERVAL 30 DAY)
@@ -146,7 +148,7 @@ class MRPDashboard:
             query = """
             SELECT 
                 wo.WorkOrderID,
-                wo.CustomerPONumber,
+                cpo.PO_Number as CustomerPONumber,
                 wo.QuantityOrdered,
                 wo.QuantityCompleted,
                 wo.CompletionDate,
@@ -160,6 +162,7 @@ class MRPDashboard:
             FROM WorkOrders wo
             JOIN Customers c ON wo.CustomerID = c.CustomerID
             JOIN Parts p ON wo.PartID = p.PartID
+            LEFT JOIN CustomerPurchaseOrders cpo ON wo.CustomerPOID = cpo.PO_ID
             LEFT JOIN CertificatesLog cl ON wo.WorkOrderID = cl.WorkOrderID
             WHERE wo.Status IN ('Completed', 'Shipped')
             AND wo.CompletionDate < DATE_SUB(NOW(), INTERVAL 30 DAY)
@@ -430,7 +433,7 @@ class MRPDashboard:
             query = """
             SELECT
                 wo.WorkOrderID,
-                wo.CustomerPONumber,
+                cpo.PO_Number as CustomerPONumber,
                 wo.QuantityOrdered,
                 wo.QuantityCompleted,
                 wo.StartDate,
@@ -446,6 +449,7 @@ class MRPDashboard:
             FROM WorkOrders wo
             JOIN Customers c ON wo.CustomerID = c.CustomerID
             JOIN Parts p ON wo.PartID = p.PartID
+            LEFT JOIN CustomerPurchaseOrders cpo ON wo.CustomerPOID = cpo.PO_ID
             WHERE 1=1
             """
 
@@ -462,7 +466,7 @@ class MRPDashboard:
             if search:
                 query += """ AND (
                     wo.WorkOrderID LIKE %s OR
-                    wo.CustomerPONumber LIKE %s OR
+                    cpo.PO_Number LIKE %s OR
                     c.CustomerName LIKE %s OR
                     p.PartNumber LIKE %s OR
                     p.Description LIKE %s
@@ -491,6 +495,7 @@ class MRPDashboard:
             FROM WorkOrders wo
             JOIN Customers c ON wo.CustomerID = c.CustomerID
             JOIN Parts p ON wo.PartID = p.PartID
+            LEFT JOIN CustomerPurchaseOrders cpo ON wo.CustomerPOID = cpo.PO_ID
             WHERE 1=1
             """
 
@@ -501,7 +506,7 @@ class MRPDashboard:
             if search:
                 count_query += """ AND (
                     wo.WorkOrderID LIKE %s OR
-                    wo.CustomerPONumber LIKE %s OR
+                    cpo.PO_Number LIKE %s OR
                     c.CustomerName LIKE %s OR
                     p.PartNumber LIKE %s OR
                     p.Description LIKE %s
@@ -674,26 +679,24 @@ class MRPDashboard:
             conn = self.get_db_connection()
             cursor = conn.cursor()
 
-            # Check if CustomerPOID is valid
+            # Validate CustomerPOID if provided
             if customer_po_id and customer_po_id != '':
-                # Get CustomerPONumber from CustomerPOID
-                cursor.execute("SELECT PONumber FROM CustomerPurchaseOrders WHERE CustomerPOID = %s", (customer_po_id,))
-                result = cursor.fetchone()
-                customer_po_number = result[0] if result else None
+                cursor.execute("SELECT PO_ID FROM CustomerPurchaseOrders WHERE PO_ID = %s", (customer_po_id,))
+                if not cursor.fetchone():
+                    customer_po_id = None
             else:
                 customer_po_id = None
-                customer_po_number = None
 
             query = """
             INSERT INTO WorkOrders
-            (WorkOrderNumber, CustomerID, PartID, CustomerPOID, CustomerPONumber,
+            (WorkOrderNumber, CustomerID, PartID, CustomerPOID,
              QuantityOrdered, QuantityCompleted, StartDate, DueDate, Status, Priority,
              Notes, CreatedDate, UpdatedDate)
-            VALUES (%s, %s, %s, %s, %s, %s, 0, %s, %s, %s, %s, %s, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+            VALUES (%s, %s, %s, %s, %s, 0, %s, %s, %s, %s, %s, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
             """
 
             cursor.execute(query, (work_order_number, customer_id, part_id, customer_po_id,
-                                 customer_po_number, quantity_ordered, start_date, due_date,
+                                 quantity_ordered, start_date, due_date,
                                  status, priority, notes))
             conn.commit()
 

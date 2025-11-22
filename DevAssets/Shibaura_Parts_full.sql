@@ -1,4 +1,4 @@
-﻿
+﻿-- TODO: Normalize data, double quote descriptions and part number
 USE amcmrp;
 
 INSERT INTO Parts (PartNumber, Description) VALUES

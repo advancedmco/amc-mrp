@@ -298,17 +298,19 @@ CREATE TABLE OAuthTokens (
 -- Note: Auto-population of CustomerPOID and PartID from CustomerPOLineItemID
 -- should be handled at the application level to avoid trigger complexity
 
--- Trigger to auto-generate WorkOrderNumber AFTER INSERT (when WorkOrderID is available)
+-- Trigger to auto-generate WorkOrderNumber BEFORE INSERT
 DELIMITER //
-CREATE TRIGGER trg_workorder_after_insert
-AFTER INSERT ON WorkOrders
+CREATE TRIGGER trg_workorder_before_insert
+BEFORE INSERT ON WorkOrders
 FOR EACH ROW
 BEGIN
     -- Auto-generate WorkOrderNumber if not provided
+    -- Note: WorkOrderID is not yet available in BEFORE INSERT, so we'll set a placeholder
+    -- The actual WorkOrderNumber will be set after insert via application logic or leave as NULL
+    -- and let the application handle it, OR we can just leave this trigger disabled
+    -- and handle WorkOrderNumber generation in the application layer
     IF NEW.WorkOrderNumber IS NULL OR NEW.WorkOrderNumber = '' THEN
-        UPDATE WorkOrders
-        SET WorkOrderNumber = CONCAT('WO-', LPAD(NEW.WorkOrderID, 5, '0'))
-        WHERE WorkOrderID = NEW.WorkOrderID;
+        SET NEW.WorkOrderNumber = NULL;  -- Will be set by application or remain NULL
     END IF;
 END//
 DELIMITER ;

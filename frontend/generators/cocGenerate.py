@@ -132,7 +132,7 @@ class COCGenerator:
             query = """
             SELECT 
                 wo.WorkOrderID,
-                wo.CustomerPONumber,
+                cpo.PO_Number as CustomerPONumber,
                 wo.QuantityOrdered,
                 wo.QuantityCompleted,
                 c.CustomerName,
@@ -143,6 +143,7 @@ class COCGenerator:
             FROM WorkOrders wo
             JOIN Customers c ON wo.CustomerID = c.CustomerID
             JOIN Parts p ON wo.PartID = p.PartID
+            LEFT JOIN CustomerPurchaseOrders cpo ON wo.CustomerPOID = cpo.PO_ID
             WHERE wo.WorkOrderID = %s
             """
             

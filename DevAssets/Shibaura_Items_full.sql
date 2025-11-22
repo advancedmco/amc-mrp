@@ -1,4 +1,4 @@
-﻿
+﻿-- TODO: Normalize dates, double quote descriptions and part number
 USE amcmrp;
 
 INSERT INTO CustomerPOLineItems (PO_ID, Line_Number, Part_Number, Description, Quantity, Unit_Price, Due_Date, Status) VALUES

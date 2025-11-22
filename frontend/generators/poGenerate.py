@@ -106,7 +106,7 @@ class POGenerator:
                 bp.ProcessRequirements,
                 bp.Status as ProcessStatus,
                 wo.WorkOrderID,
-                wo.CustomerPONumber,
+                cpo.PO_Number as CustomerPONumber,
                 p.PartNumber,
                 p.Description,
                 p.Material,
@@ -122,6 +122,7 @@ class POGenerator:
             JOIN WorkOrders wo ON b.WorkOrderID = wo.WorkOrderID
             JOIN Parts p ON wo.PartID = p.PartID
             JOIN Customers c ON wo.CustomerID = c.CustomerID
+            LEFT JOIN CustomerPurchaseOrders cpo ON wo.CustomerPOID = cpo.PO_ID
             LEFT JOIN Vendors v ON bp.VendorID = v.VendorID
             WHERE bp.ProcessID = %s
             """

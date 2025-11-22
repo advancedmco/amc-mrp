@@ -1,6 +1,6 @@
 services:
   # MySQL Database Service
-  mysql:
+  db:
     build:
       context: ./database
       dockerfile: Dockerfile
@@ -22,8 +22,8 @@ services:
       timeout: 3s
       retries: 20
       start_period: 30s
-    volumes:
-      - mrp-db:/var/lib/mysql
+    #volumes:
+    #  - mrp-db:/var/lib/mysql
 
   # Web Dashboard and Document Generator Service
   frontend:
@@ -32,7 +32,7 @@ services:
       dockerfile: Dockerfile
     container_name: mrp-frontend
     depends_on:
-      mysql:
+      db:
         condition: service_healthy
     ports:
       - "5001:5000"
@@ -62,7 +62,7 @@ services:
       dockerfile: Dockerfile
     container_name: mrp-backend
     depends_on:
-      mysql:
+      db:
         condition: service_healthy
     ports:
       - "5002:5002"

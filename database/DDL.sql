@@ -118,7 +118,7 @@ CREATE TABLE CustomerPOLineItems (
 -- 6. Work Orders Table (Main work order management)
 CREATE TABLE WorkOrders (
     WorkOrderID INT AUTO_INCREMENT PRIMARY KEY,
-    WorkOrderNumber VARCHAR(50) NOT NULL UNIQUE COMMENT 'Human-readable work order number (e.g., WO-10001)',
+    WorkOrderNumber VARCHAR(50) UNIQUE COMMENT 'Human-readable work order number (e.g., WO-10001)',
     CustomerID INT NOT NULL,
     PartID INT NOT NULL,
     CustomerPOID INT COMMENT 'Direct reference to Customer PO header (denormalized for performance)',
@@ -295,17 +295,12 @@ CREATE TABLE OAuthTokens (
 -- TRIGGERS FOR AUTOMATION
 -- =============================================
 
--- Trigger to auto-generate WorkOrderNumber and populate related fields
+-- Trigger to auto-populate related fields BEFORE INSERT
 DELIMITER //
 CREATE TRIGGER trg_workorder_before_insert
 BEFORE INSERT ON WorkOrders
 FOR EACH ROW
 BEGIN
-    -- Auto-generate WorkOrderNumber if not provided
-    IF NEW.WorkOrderNumber IS NULL OR NEW.WorkOrderNumber = '' THEN
-        SET NEW.WorkOrderNumber = CONCAT('WO-', LPAD(NEW.WorkOrderID, 5, '0'));
-    END IF;
-
     -- Auto-populate CustomerPOID from CustomerPOLineItemID if provided
     IF NEW.CustomerPOLineItemID IS NOT NULL AND NEW.CustomerPOID IS NULL THEN
         SELECT PO_ID INTO NEW.CustomerPOID
@@ -319,6 +314,21 @@ BEGIN
         FROM CustomerPOLineItems
         WHERE LineItem_ID = NEW.CustomerPOLineItemID
         LIMIT 1;
+    END IF;
+END//
+DELIMITER ;
+
+-- Trigger to auto-generate WorkOrderNumber AFTER INSERT (when WorkOrderID is available)
+DELIMITER //
+CREATE TRIGGER trg_workorder_after_insert
+AFTER INSERT ON WorkOrders
+FOR EACH ROW
+BEGIN
+    -- Auto-generate WorkOrderNumber if not provided
+    IF NEW.WorkOrderNumber IS NULL OR NEW.WorkOrderNumber = '' THEN
+        UPDATE WorkOrders
+        SET WorkOrderNumber = CONCAT('WO-', LPAD(NEW.WorkOrderID, 5, '0'))
+        WHERE WorkOrderID = NEW.WorkOrderID;
     END IF;
 END//
 DELIMITER ;

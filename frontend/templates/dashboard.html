@@ -110,6 +110,30 @@
     </div>
 </div>
 
+<!-- Quick Actions -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h6 class="mb-0"><i class="bi bi-plus-circle me-2"></i>Quick Actions</h6>
+            </div>
+            <div class="card-body">
+                <div class="d-flex gap-2">
+                    <button class="btn btn-primary" onclick="showAddCustomerPOModal()">
+                        <i class="bi bi-file-earmark-arrow-up me-2"></i>Add Customer PO
+                    </button>
+                    <button class="btn btn-success" onclick="showAddWorkorderModal()">
+                        <i class="bi bi-clipboard-plus me-2"></i>Add Workorder
+                    </button>
+                    <button class="btn btn-info" onclick="showAddBOMModal()">
+                        <i class="bi bi-list-ul me-2"></i>Add BOM
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- KPI Metrics -->
 <div class="row mb-4">
     <div class="col-md-3">
@@ -324,7 +348,9 @@
                                 {% for order in live_orders %}
                                 <tr>
                                     <td>
-                                        <strong>{{ order.WorkOrderNumber }}</strong>
+                                        <a href="#" onclick="viewOrderDetails({{ order.WorkOrderID }}); return false;" class="text-decoration-none">
+                                            <strong>{{ order.WorkOrderNumber }}</strong>
+                                        </a>
                                         {% if order.CustomerPONumber %}
                                         <br><small class="text-muted">PO: {{ order.CustomerPONumber }}</small>
                                         {% endif %}
@@ -427,7 +453,9 @@
                             {% for order in recent_completed %}
                             <tr>
                                 <td>
-                                    <strong>{{ order.WorkOrderNumber }}</strong>
+                                    <a href="#" onclick="viewOrderDetails({{ order.WorkOrderID }}); return false;" class="text-decoration-none">
+                                        <strong>{{ order.WorkOrderNumber }}</strong>
+                                    </a>
                                     {% if order.CustomerPONumber %}
                                     <br><small class="text-muted">PO: {{ order.CustomerPONumber }}</small>
                                     {% endif %}
@@ -523,6 +551,236 @@
             </div>
             <div class="modal-body" id="createPOContent">
                 <!-- Content will be loaded dynamically -->
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Add Customer PO Modal -->
+<div class="modal fade" id="addCustomerPOModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Add Customer Purchase Order</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="addCustomerPOForm" enctype="multipart/form-data">
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label for="customerPONumber" class="form-label">PO Number *</label>
+                            <input type="text" class="form-control" id="customerPONumber" name="po_number" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="customerSelect" class="form-label">Customer *</label>
+                            <select class="form-select" id="customerSelect" name="customer_id" required>
+                                <option value="">Select Customer...</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label for="customerPODate" class="form-label">PO Date *</label>
+                            <input type="date" class="form-control" id="customerPODate" name="po_date" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="customerPODueDate" class="form-label">Due Date</label>
+                            <input type="date" class="form-control" id="customerPODueDate" name="due_date">
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="customerPOFile" class="form-label">Upload PO PDF</label>
+                        <input type="file" class="form-control" id="customerPOFile" name="po_file" accept=".pdf">
+                        <small class="text-muted">Optional: Upload the customer's PO document (PDF format)</small>
+                    </div>
+                    <div class="mb-3">
+                        <label for="customerPONotes" class="form-label">Notes</label>
+                        <textarea class="form-control" id="customerPONotes" name="notes" rows="3"></textarea>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" onclick="submitCustomerPO()">
+                    <i class="bi bi-save me-2"></i>Save Customer PO
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Add Workorder Modal -->
+<div class="modal fade" id="addWorkorderModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Add Workorder</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="addWorkorderForm">
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label for="workorderNumber" class="form-label">Work Order Number *</label>
+                            <input type="text" class="form-control" id="workorderNumber" name="work_order_number" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="woCustomerSelect" class="form-label">Customer *</label>
+                            <select class="form-select" id="woCustomerSelect" name="customer_id" required>
+                                <option value="">Select Customer...</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label for="woPartSelect" class="form-label">Part *</label>
+                            <select class="form-select" id="woPartSelect" name="part_id" required>
+                                <option value="">Select Part...</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="woCustomerPOSelect" class="form-label">Customer PO</label>
+                            <select class="form-select" id="woCustomerPOSelect" name="customer_po_id">
+                                <option value="">Select Customer PO (Optional)...</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-md-4">
+                            <label for="woQuantity" class="form-label">Quantity Ordered *</label>
+                            <input type="number" class="form-control" id="woQuantity" name="quantity_ordered" required min="1">
+                        </div>
+                        <div class="col-md-4">
+                            <label for="woStartDate" class="form-label">Start Date</label>
+                            <input type="date" class="form-control" id="woStartDate" name="start_date">
+                        </div>
+                        <div class="col-md-4">
+                            <label for="woDueDate" class="form-label">Due Date *</label>
+                            <input type="date" class="form-control" id="woDueDate" name="due_date" required>
+                        </div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label for="woStatus" class="form-label">Status *</label>
+                            <select class="form-select" id="woStatus" name="status" required>
+                                <option value="Pending Material">Pending Material</option>
+                                <option value="Idle" selected>Idle</option>
+                                <option value="On Machine">On Machine</option>
+                                <option value="Secondary Operations">Secondary Operations</option>
+                                <option value="Quality Control">Quality Control</option>
+                                <option value="Completed">Completed</option>
+                                <option value="Shipped">Shipped</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="woPriority" class="form-label">Priority *</label>
+                            <select class="form-select" id="woPriority" name="priority" required>
+                                <option value="Low">Low</option>
+                                <option value="Normal" selected>Normal</option>
+                                <option value="High">High</option>
+                                <option value="Urgent">Urgent</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="woNotes" class="form-label">Notes</label>
+                        <textarea class="form-control" id="woNotes" name="notes" rows="3"></textarea>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-success" onclick="submitWorkorder()">
+                    <i class="bi bi-save me-2"></i>Save Workorder
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Add BOM Modal -->
+<div class="modal fade" id="addBOMModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Add BOM Process</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="addBOMForm">
+                    <div class="mb-3">
+                        <label for="bomWorkorderSelect" class="form-label">Work Order *</label>
+                        <select class="form-select" id="bomWorkorderSelect" name="work_order_id" required>
+                            <option value="">Select Work Order...</option>
+                        </select>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label for="bomProcessType" class="form-label">Process Type *</label>
+                            <select class="form-select" id="bomProcessType" name="process_type" required>
+                                <option value="">Select Process Type...</option>
+                                <option value="Machining">Machining</option>
+                                <option value="Plating">Plating</option>
+                                <option value="Heat Treatment">Heat Treatment</option>
+                                <option value="Anodizing">Anodizing</option>
+                                <option value="Powder Coating">Powder Coating</option>
+                                <option value="Assembly">Assembly</option>
+                                <option value="Inspection">Inspection</option>
+                                <option value="Other">Other</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="bomProcessName" class="form-label">Process Name *</label>
+                            <input type="text" class="form-control" id="bomProcessName" name="process_name" required>
+                        </div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-md-4">
+                            <label for="bomVendorSelect" class="form-label">Vendor</label>
+                            <select class="form-select" id="bomVendorSelect" name="vendor_id">
+                                <option value="">Select Vendor (Optional)...</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label for="bomQuantity" class="form-label">Quantity *</label>
+                            <input type="number" class="form-control" id="bomQuantity" name="quantity" required min="1">
+                        </div>
+                        <div class="col-md-4">
+                            <label for="bomEstimatedCost" class="form-label">Estimated Cost</label>
+                            <input type="number" class="form-control" id="bomEstimatedCost" name="estimated_cost" step="0.01" min="0">
+                        </div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label for="bomStatus" class="form-label">Status *</label>
+                            <select class="form-select" id="bomStatus" name="status" required>
+                                <option value="Pending" selected>Pending</option>
+                                <option value="Ordered">Ordered</option>
+                                <option value="In Progress">In Progress</option>
+                                <option value="Completed">Completed</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label d-block">Certification Required</label>
+                            <div class="form-check form-check-inline">
+                                <input class="form-check-input" type="checkbox" id="bomCertRequired" name="certification_required" value="1">
+                                <label class="form-check-label" for="bomCertRequired">
+                                    Certification Required
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="bomNotes" class="form-label">Notes</label>
+                        <textarea class="form-control" id="bomNotes" name="notes" rows="3"></textarea>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-info" onclick="submitBOM()">
+                    <i class="bi bi-save me-2"></i>Save BOM Process
+                </button>
             </div>
         </div>
     </div>
@@ -886,7 +1144,9 @@ function updateOrdersTable(orders) {
     tbody.innerHTML = orders.map(order => `
         <tr>
             <td>
-                <strong>${order.WorkOrderNumber}</strong>
+                <a href="#" onclick="viewOrderDetails(${order.WorkOrderID}); return false;" class="text-decoration-none">
+                    <strong>${order.WorkOrderNumber}</strong>
+                </a>
                 ${order.CustomerPONumber ? '<br><small class="text-muted">PO: ' + order.CustomerPONumber + '</small>' : ''}
             </td>
             <td>${order.CustomerName}</td>
@@ -1224,6 +1484,230 @@ function downloadCOC(filePath) {
 
     const filename = filePath.split('/').pop();
     window.open(`/download_pdf/${filename}`, '_blank');
+}
+
+// Show Add Customer PO Modal
+function showAddCustomerPOModal() {
+    // Load customers
+    fetch('/api/customers')
+        .then(response => response.json())
+        .then(data => {
+            const select = document.getElementById('customerSelect');
+            select.innerHTML = '<option value="">Select Customer...</option>';
+            data.customers.forEach(customer => {
+                const option = document.createElement('option');
+                option.value = customer.CustomerID;
+                option.textContent = customer.CustomerName;
+                select.appendChild(option);
+            });
+        })
+        .catch(error => {
+            console.error('Error loading customers:', error);
+        });
+
+    // Set default date to today
+    document.getElementById('customerPODate').valueAsDate = new Date();
+
+    const modal = new bootstrap.Modal(document.getElementById('addCustomerPOModal'));
+    modal.show();
+}
+
+// Submit Customer PO
+function submitCustomerPO() {
+    const form = document.getElementById('addCustomerPOForm');
+    if (!form.checkValidity()) {
+        form.reportValidity();
+        return;
+    }
+
+    const formData = new FormData(form);
+
+    showLoading('Creating Customer PO...');
+
+    fetch('/api/customer_po/add', {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        hideLoading();
+        if (data.success) {
+            showAlert(data.message, 'success');
+            const modal = bootstrap.Modal.getInstance(document.getElementById('addCustomerPOModal'));
+            modal.hide();
+            form.reset();
+            setTimeout(() => location.reload(), 1000);
+        } else {
+            showAlert(data.error || 'Failed to create Customer PO', 'danger');
+        }
+    })
+    .catch(error => {
+        hideLoading();
+        showAlert('Error creating Customer PO: ' + error.message, 'danger');
+    });
+}
+
+// Show Add Workorder Modal
+function showAddWorkorderModal() {
+    // Load customers
+    fetch('/api/customers')
+        .then(response => response.json())
+        .then(data => {
+            const select = document.getElementById('woCustomerSelect');
+            select.innerHTML = '<option value="">Select Customer...</option>';
+            data.customers.forEach(customer => {
+                const option = document.createElement('option');
+                option.value = customer.CustomerID;
+                option.textContent = customer.CustomerName;
+                select.appendChild(option);
+            });
+        });
+
+    // Load parts
+    fetch('/api/parts')
+        .then(response => response.json())
+        .then(data => {
+            const select = document.getElementById('woPartSelect');
+            select.innerHTML = '<option value="">Select Part...</option>';
+            data.parts.forEach(part => {
+                const option = document.createElement('option');
+                option.value = part.PartID;
+                option.textContent = `${part.PartNumber} - ${part.Description}`;
+                select.appendChild(option);
+            });
+        });
+
+    // Load customer POs
+    fetch('/api/customer_pos')
+        .then(response => response.json())
+        .then(data => {
+            const select = document.getElementById('woCustomerPOSelect');
+            select.innerHTML = '<option value="">Select Customer PO (Optional)...</option>';
+            data.customer_pos.forEach(po => {
+                const option = document.createElement('option');
+                option.value = po.CustomerPOID;
+                option.textContent = `${po.PONumber} - ${po.CustomerName}`;
+                select.appendChild(option);
+            });
+        });
+
+    const modal = new bootstrap.Modal(document.getElementById('addWorkorderModal'));
+    modal.show();
+}
+
+// Submit Workorder
+function submitWorkorder() {
+    const form = document.getElementById('addWorkorderForm');
+    if (!form.checkValidity()) {
+        form.reportValidity();
+        return;
+    }
+
+    const formData = new FormData(form);
+    const data = Object.fromEntries(formData.entries());
+
+    showLoading('Creating Workorder...');
+
+    fetch('/api/workorder/add', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(data)
+    })
+    .then(response => response.json())
+    .then(data => {
+        hideLoading();
+        if (data.success) {
+            showAlert(data.message, 'success');
+            const modal = bootstrap.Modal.getInstance(document.getElementById('addWorkorderModal'));
+            modal.hide();
+            form.reset();
+            setTimeout(() => location.reload(), 1000);
+        } else {
+            showAlert(data.error || 'Failed to create Workorder', 'danger');
+        }
+    })
+    .catch(error => {
+        hideLoading();
+        showAlert('Error creating Workorder: ' + error.message, 'danger');
+    });
+}
+
+// Show Add BOM Modal
+function showAddBOMModal() {
+    // Load workorders
+    fetch('/api/workorders')
+        .then(response => response.json())
+        .then(data => {
+            const select = document.getElementById('bomWorkorderSelect');
+            select.innerHTML = '<option value="">Select Work Order...</option>';
+            data.workorders.forEach(wo => {
+                const option = document.createElement('option');
+                option.value = wo.WorkOrderID;
+                option.textContent = `${wo.WorkOrderNumber} - ${wo.PartNumber}`;
+                select.appendChild(option);
+            });
+        });
+
+    // Load vendors
+    fetch('/api/vendors')
+        .then(response => response.json())
+        .then(data => {
+            const select = document.getElementById('bomVendorSelect');
+            select.innerHTML = '<option value="">Select Vendor (Optional)...</option>';
+            data.vendors.forEach(vendor => {
+                const option = document.createElement('option');
+                option.value = vendor.VendorID;
+                option.textContent = vendor.VendorName;
+                select.appendChild(option);
+            });
+        });
+
+    const modal = new bootstrap.Modal(document.getElementById('addBOMModal'));
+    modal.show();
+}
+
+// Submit BOM
+function submitBOM() {
+    const form = document.getElementById('addBOMForm');
+    if (!form.checkValidity()) {
+        form.reportValidity();
+        return;
+    }
+
+    const formData = new FormData(form);
+    const data = Object.fromEntries(formData.entries());
+
+    // Handle checkbox
+    data.certification_required = document.getElementById('bomCertRequired').checked ? 1 : 0;
+
+    showLoading('Creating BOM Process...');
+
+    fetch('/api/bom/add', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(data)
+    })
+    .then(response => response.json())
+    .then(data => {
+        hideLoading();
+        if (data.success) {
+            showAlert(data.message, 'success');
+            const modal = bootstrap.Modal.getInstance(document.getElementById('addBOMModal'));
+            modal.hide();
+            form.reset();
+            setTimeout(() => location.reload(), 1000);
+        } else {
+            showAlert(data.error || 'Failed to create BOM Process', 'danger');
+        }
+    })
+    .catch(error => {
+        hideLoading();
+        showAlert('Error creating BOM Process: ' + error.message, 'danger');
+    });
 }
 </script>
 {% endblock %}

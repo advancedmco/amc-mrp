@@ -2365,7 +2365,7 @@ INSERT INTO CustomerPurchaseOrders (PO_Number, CustomerID, Order_Date, Total_Val
 -- 6. WORK ORDERS - Sample work orders
 -- =============================================
 
-    INSERT INTO WorkOrders (CustomerID, PartID, CustomerPONumber, QuantityOrdered, QuantityCompleted, StartDate, DueDate, Status, Priority, Notes) VALUES
+INSERT INTO WorkOrders (CustomerID, PartID, CustomerPONumber, QuantityOrdered, QuantityCompleted, StartDate, DueDate, Status, Priority, Notes) VALUES
 -- Completed historical work order
 (
     (SELECT CustomerID FROM Customers WHERE CustomerName = 'Shibaura'),
@@ -2413,21 +2413,21 @@ INSERT INTO CustomerPurchaseOrders (PO_Number, CustomerID, Order_Date, Total_Val
 -- =============================================
 
 INSERT INTO BOM (WorkOrderID, BOMVersion, CreatedBy, IsActive, Notes) VALUES
--- BOM for completed Shibaura work order
-(1, '1.0', 'System', TRUE, 'Historical BOM from 2018'),
+-- BOM for completed Shibaura work order (WorkOrderID will be 10000)
+(10000, '1.0', 'System', TRUE, 'Historical BOM from 2018'),
 
--- BOM for active Navy electrode probe order
-(2, '1.0', 'Engineering', TRUE, 'Requires chrome plating - military spec'),
+-- BOM for active Navy electrode probe order (WorkOrderID will be 10001)
+(10001, '1.0', 'Engineering', TRUE, 'Requires chrome plating - military spec'),
 
--- BOM for pending Navy piston head order
-(3, '1.0', 'Engineering', TRUE, 'Heat treatment required');
+-- BOM for pending Navy piston head order (WorkOrderID will be 10002)
+(10002, '1.0', 'Engineering', TRUE, 'Heat treatment required');
 
 -- =============================================
 -- 8. BOM PROCESSES - Individual processes for each BOM
 -- =============================================
 
 INSERT INTO BOMProcesses (BOMID, ProcessType, ProcessName, VendorID, Quantity, UnitOfMeasure, EstimatedCost, LeadTimeDays, CertificationRequired, ProcessRequirements, Status) VALUES
--- BOM 1: Simple completed part (438S5707 - Spacer)
+-- BOM 1: Simple completed part (438S5707 - Spacer) - BOMID will be 1
 (1, 'Raw Material', '4140 Steel Round Bar',
     (SELECT VendorID FROM Vendors WHERE VendorName = 'Metal Supermarkets'),
     1, 'EA', 25.00, 3, FALSE, '1" diameter x 3" length', 'Completed'),
@@ -2481,10 +2481,10 @@ INSERT INTO PurchaseOrdersLog (
     PartNumber, Description, Material, Quantity, UnitPrice, TotalAmount,
     CertificationRequired, ProcessRequirements, Status, CreatedBy
 ) VALUES
--- PO for 303 Stainless for Navy electrode probes
+-- PO for 303 Stainless for Navy electrode probes (WorkOrderID 10001)
 (
     'PO-2025-001',
-    2,
+    10001,
     (SELECT ProcessID FROM BOMProcesses WHERE BOMID = 2 AND ProcessType = 'Raw Material'),
     (SELECT VendorID FROM Vendors WHERE VendorName = 'Nova-Chrome Inc'),
     '2025-01-18',
@@ -2501,10 +2501,10 @@ INSERT INTO PurchaseOrdersLog (
     'System'
 ),
 
--- PO for chrome plating (pending)
+-- PO for chrome plating (pending) (WorkOrderID 10001)
 (
     'PO-2025-002',
-    2,
+    10001,
     (SELECT ProcessID FROM BOMProcesses WHERE BOMID = 2 AND ProcessType = 'Plating'),
     (SELECT VendorID FROM Vendors WHERE VendorName = 'Nova-Chrome Inc'),
     '2025-02-01',
@@ -2532,7 +2532,7 @@ INSERT INTO CertificatesLog (
 ) VALUES
 (
     'COC-2018-001',
-    1,
+    10000,
     (SELECT CustomerID FROM Customers WHERE CustomerName = 'Shibaura'),
     '438S5707',
     'SPACER FOR PLUNGER UNIT',
@@ -2549,31 +2549,31 @@ INSERT INTO CertificatesLog (
 -- =============================================
 
 INSERT INTO WorkOrderStatusHistory (WorkOrderID, PreviousStatus, NewStatus, ChangedBy, Notes) VALUES
--- History for completed work order
-(1, NULL, 'Pending Material', 'System', 'Work order created'),
-(1, 'Pending Material', 'On Machine', 'Production', 'Material received, started machining'),
-(1, 'On Machine', 'Quality Control', 'Production', 'Machining complete'),
-(1, 'Quality Control', 'Completed', 'QA', 'Inspection passed'),
-(1, 'Completed', 'Shipped', 'Shipping', 'Shipped to customer'),
+-- History for completed work order (WorkOrderID 10000)
+(10000, NULL, 'Pending Material', 'System', 'Work order created'),
+(10000, 'Pending Material', 'On Machine', 'Production', 'Material received, started machining'),
+(10000, 'On Machine', 'Quality Control', 'Production', 'Machining complete'),
+(10000, 'Quality Control', 'Completed', 'QA', 'Inspection passed'),
+(10000, 'Completed', 'Shipped', 'Shipping', 'Shipped to customer'),
 
--- History for active Navy work order
-(2, NULL, 'Pending Material', 'System', 'Work order created'),
-(2, 'Pending Material', 'On Machine', 'Production', 'Material received, machining in progress');
+-- History for active Navy work order (WorkOrderID 10001)
+(10001, NULL, 'Pending Material', 'System', 'Work order created'),
+(10001, 'Pending Material', 'On Machine', 'Production', 'Material received, machining in progress');
 
 -- =============================================
 -- 12. PRODUCTION STAGES - Track quantities
 -- =============================================
 
 INSERT INTO ProductionStages (WorkOrderID, StageName, QuantityIn, QuantityOut, QuantityLoss, StageDate, Notes) VALUES
--- Completed work order stages
-(1, 'Raw Material Receipt', 1, 1, 0, '2018-05-20', 'Material received and inspected'),
-(1, 'CNC Turning', 1, 1, 0, '2018-05-25', 'Turning operation complete'),
-(1, 'Final Inspection', 1, 1, 0, '2018-06-08', 'Passed inspection'),
+-- Completed work order stages (WorkOrderID 10000)
+(10000, 'Raw Material Receipt', 1, 1, 0, '2018-05-20', 'Material received and inspected'),
+(10000, 'CNC Turning', 1, 1, 0, '2018-05-25', 'Turning operation complete'),
+(10000, 'Final Inspection', 1, 1, 0, '2018-06-08', 'Passed inspection'),
 
--- Active Navy work order stages
-(2, 'Raw Material Receipt', 50, 50, 0, '2025-01-25', 'Material received with certs'),
-(2, 'CNC Turning Setup', 50, 48, 2, '2025-01-28', 'Started machining, 2 scrapped in setup'),
-(2, 'CNC Turning In Progress', 48, 45, 3, '2025-02-05', 'Machining ongoing, 3 additional scrap');
+-- Active Navy work order stages (WorkOrderID 10001)
+(10001, 'Raw Material Receipt', 50, 50, 0, '2025-01-25', 'Material received with certs'),
+(10001, 'CNC Turning Setup', 50, 48, 2, '2025-01-28', 'Started machining, 2 scrapped in setup'),
+(10001, 'CNC Turning In Progress', 48, 45, 3, '2025-02-05', 'Machining ongoing, 3 additional scrap');
 
 -- =============================================
 -- DATA LOAD COMPLETE

@@ -132,7 +132,7 @@ CREATE TABLE WorkOrders (
     FOREIGN KEY (PartID) REFERENCES Parts(PartID),
     INDEX idx_customer_po (CustomerPONumber),
     INDEX idx_status (Status)
-);
+) AUTO_INCREMENT=10000;
 
 -- =============================================
 -- BOM TABLES

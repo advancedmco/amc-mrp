@@ -21,14 +21,9 @@ services:
       interval: 5s
       timeout: 3s
       retries: 20
-      start_period: 60s
+      start_period: 30s
     volumes:
-      - ./database/live:/var/lib/mysql
-    # No persistent volumes - fresh database on each startup
-    # tmpfs optimized for MariaDB with explicit size and mode
-    #tmpfs:
-    #  - /var/lib/mysql:rw,noexec,nosuid,size=512m
-    #  - /tmp:rw,noexec,nosuid,size=64m
+      - mrp-db:/var/lib/mysql
 
   # Web Dashboard and Document Generator Service
   frontend:
@@ -97,7 +92,8 @@ networks:
     driver: bridge
 
 volumes:
-  # Define named volumes if needed for persistent data
-  # (Currently not used since we want fresh DB each time)
+  # Persistent database storage
+  mrp-db:
+    driver: local
   output-data:
     driver: local

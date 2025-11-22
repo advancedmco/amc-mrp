@@ -64,7 +64,6 @@ class MRPDashboard:
             query = """
             SELECT 
                 wo.WorkOrderID,
-                wo.WorkOrderNumber,
                 wo.CustomerPONumber,
                 wo.QuantityOrdered,
                 wo.QuantityCompleted,
@@ -106,7 +105,6 @@ class MRPDashboard:
             query = """
             SELECT 
                 wo.WorkOrderID,
-                wo.WorkOrderNumber,
                 wo.CustomerPONumber,
                 wo.QuantityOrdered,
                 wo.QuantityCompleted,
@@ -148,7 +146,6 @@ class MRPDashboard:
             query = """
             SELECT 
                 wo.WorkOrderID,
-                wo.WorkOrderNumber,
                 wo.CustomerPONumber,
                 wo.QuantityOrdered,
                 wo.QuantityCompleted,
@@ -433,7 +430,6 @@ class MRPDashboard:
             query = """
             SELECT
                 wo.WorkOrderID,
-                wo.WorkOrderNumber,
                 wo.CustomerPONumber,
                 wo.QuantityOrdered,
                 wo.QuantityCompleted,
@@ -465,7 +461,7 @@ class MRPDashboard:
 
             if search:
                 query += """ AND (
-                    wo.WorkOrderNumber LIKE %s OR
+                    wo.WorkOrderID LIKE %s OR
                     wo.CustomerPONumber LIKE %s OR
                     c.CustomerName LIKE %s OR
                     p.PartNumber LIKE %s OR
@@ -475,7 +471,7 @@ class MRPDashboard:
                 params.extend([search_param] * 5)
 
             # Add sorting
-            allowed_sort_fields = ['WorkOrderNumber', 'CustomerName', 'DueDate', 'Status', 'Priority', 'CreatedDate']
+            allowed_sort_fields = ['WorkOrderID', 'CustomerName', 'DueDate', 'Status', 'Priority', 'CreatedDate']
             if sort_by in allowed_sort_fields:
                 sort_order = 'ASC' if sort_order.upper() == 'ASC' else 'DESC'
                 query += f" ORDER BY wo.{sort_by} {sort_order}"
@@ -504,7 +500,7 @@ class MRPDashboard:
                 count_query += " AND wo.Priority = %s"
             if search:
                 count_query += """ AND (
-                    wo.WorkOrderNumber LIKE %s OR
+                    wo.WorkOrderID LIKE %s OR
                     wo.CustomerPONumber LIKE %s OR
                     c.CustomerName LIKE %s OR
                     p.PartNumber LIKE %s OR

@@ -95,6 +95,7 @@ CREATE TABLE CustomerPOLineItems (
     LineItem_ID INT AUTO_INCREMENT PRIMARY KEY,
     PO_ID INT NOT NULL,
     Line_Number INT NOT NULL,
+    PartID INT COMMENT 'Foreign key to Parts table for referential integrity',
     Part_Number VARCHAR(100) NOT NULL,
     Description VARCHAR(500),
     Quantity INT NOT NULL,
@@ -105,18 +106,24 @@ CREATE TABLE CustomerPOLineItems (
     CreatedDate TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     UpdatedDate TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     FOREIGN KEY (PO_ID) REFERENCES CustomerPurchaseOrders(PO_ID) ON DELETE CASCADE,
+    FOREIGN KEY (PartID) REFERENCES Parts(PartID),
     INDEX idx_po_line (PO_ID, Line_Number),
+    INDEX idx_part_id (PartID),
     INDEX idx_part_number_line (Part_Number),
     INDEX idx_due_date (Due_Date),
-    INDEX idx_status (Status)
+    INDEX idx_status (Status),
+    CONSTRAINT chk_lineitem_quantity_positive CHECK (Quantity > 0)
 );
 
 -- 6. Work Orders Table (Main work order management)
 CREATE TABLE WorkOrders (
     WorkOrderID INT AUTO_INCREMENT PRIMARY KEY,
+    WorkOrderNumber VARCHAR(50) NOT NULL UNIQUE COMMENT 'Human-readable work order number (e.g., WO-10001)',
     CustomerID INT NOT NULL,
     PartID INT NOT NULL,
+    CustomerPOID INT COMMENT 'Direct reference to Customer PO header (denormalized for performance)',
     CustomerPOLineItemID INT,
+    QuantityOrdered INT NOT NULL DEFAULT 1 COMMENT 'Quantity ordered for this specific work order',
     QuantityCompleted INT DEFAULT 0,
     StartDate DATE,
     DueDate DATE,
@@ -129,9 +136,14 @@ CREATE TABLE WorkOrders (
     UpdatedDate TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     FOREIGN KEY (CustomerID) REFERENCES Customers(CustomerID),
     FOREIGN KEY (PartID) REFERENCES Parts(PartID),
+    FOREIGN KEY (CustomerPOID) REFERENCES CustomerPurchaseOrders(PO_ID) ON DELETE SET NULL,
     FOREIGN KEY (CustomerPOLineItemID) REFERENCES CustomerPOLineItems(LineItem_ID),
+    INDEX idx_work_order_number (WorkOrderNumber),
+    INDEX idx_customer_po (CustomerPOID),
     INDEX idx_customer_po_lineitem (CustomerPOLineItemID),
-    INDEX idx_status (Status)
+    INDEX idx_status (Status),
+    CONSTRAINT chk_quantity_ordered_positive CHECK (QuantityOrdered > 0),
+    CONSTRAINT chk_quantity_completed_non_negative CHECK (QuantityCompleted >= 0)
 ) AUTO_INCREMENT=10000;
 
 -- =============================================
@@ -214,6 +226,7 @@ CREATE TABLE CertificatesLog (
     CertificateLogID INT AUTO_INCREMENT PRIMARY KEY,
     CertificateNumber VARCHAR(50) NOT NULL,
     WorkOrderID INT NOT NULL,
+    WorkOrderNumber VARCHAR(50) COMMENT 'Work order number for reference (optional, may not be used initially)',
     CustomerID INT NOT NULL,
     PartNumber VARCHAR(100) NOT NULL,
     Description VARCHAR(200) NOT NULL,
@@ -282,6 +295,34 @@ CREATE TABLE OAuthTokens (
 -- TRIGGERS FOR AUTOMATION
 -- =============================================
 
+-- Trigger to auto-generate WorkOrderNumber and populate related fields
+DELIMITER //
+CREATE TRIGGER trg_workorder_before_insert
+BEFORE INSERT ON WorkOrders
+FOR EACH ROW
+BEGIN
+    -- Auto-generate WorkOrderNumber if not provided
+    IF NEW.WorkOrderNumber IS NULL OR NEW.WorkOrderNumber = '' THEN
+        SET NEW.WorkOrderNumber = CONCAT('WO-', LPAD(NEW.WorkOrderID, 5, '0'));
+    END IF;
+
+    -- Auto-populate CustomerPOID from CustomerPOLineItemID if provided
+    IF NEW.CustomerPOLineItemID IS NOT NULL AND NEW.CustomerPOID IS NULL THEN
+        SELECT PO_ID INTO NEW.CustomerPOID
+        FROM CustomerPOLineItems
+        WHERE LineItem_ID = NEW.CustomerPOLineItemID;
+    END IF;
+
+    -- Auto-populate PartID from CustomerPOLineItemID if provided and PartID is NULL
+    IF NEW.CustomerPOLineItemID IS NOT NULL AND NEW.PartID IS NULL THEN
+        SELECT PartID INTO NEW.PartID
+        FROM CustomerPOLineItems
+        WHERE LineItem_ID = NEW.CustomerPOLineItemID
+        LIMIT 1;
+    END IF;
+END//
+DELIMITER ;
+
 -- Trigger to log status changes
 DELIMITER //
 CREATE TRIGGER trg_workorder_status_history
@@ -303,21 +344,33 @@ DELIMITER ;
 CREATE VIEW vw_WorkOrderSummary AS
 SELECT
     wo.WorkOrderID,
+    wo.WorkOrderNumber,
     c.CustomerName,
+    c.CustomerID,
     p.PartNumber,
-    p.Description,
+    p.PartID,
+    p.Description as PartDescription,
     cpo.PO_Number as CustomerPONumber,
-    li.Quantity as QuantityOrdered,
+    cpo.PO_ID as CustomerPOID,
+    li.LineItem_ID as CustomerPOLineItemID,
+    li.Quantity as POLineItemQuantity,
+    wo.QuantityOrdered,
     wo.QuantityCompleted,
     wo.Status,
+    wo.PaymentStatus,
     wo.Priority,
+    wo.StartDate,
     wo.DueDate,
-    DATEDIFF(wo.DueDate, CURDATE()) as DaysUntilDue
+    wo.CompletionDate,
+    DATEDIFF(wo.DueDate, CURDATE()) as DaysUntilDue,
+    wo.Notes,
+    wo.CreatedDate,
+    wo.UpdatedDate
 FROM WorkOrders wo
 JOIN Customers c ON wo.CustomerID = c.CustomerID
 JOIN Parts p ON wo.PartID = p.PartID
 LEFT JOIN CustomerPOLineItems li ON wo.CustomerPOLineItemID = li.LineItem_ID
-LEFT JOIN CustomerPurchaseOrders cpo ON li.PO_ID = cpo.PO_ID;
+LEFT JOIN CustomerPurchaseOrders cpo ON wo.CustomerPOID = cpo.PO_ID;
 
 -- View for BOM with Process Details
 CREATE VIEW vw_BOMDetails AS
@@ -340,24 +393,29 @@ LEFT JOIN Vendors v ON bp.VendorID = v.VendorID;
 -- View for Customer PO Details with Line Items
 CREATE VIEW vw_CustomerPODetails AS
 SELECT
-    cpo.PO_ID,
-    cpo.PO_Number,
+    cpo.PO_ID as CustomerPOID,
+    cpo.PO_Number as CustomerPONumber,
     c.CustomerName,
-    cpo.Order_Date,
-    cpo.Total_Value,
-    cpo.Status as PO_Status,
-    li.LineItem_ID,
-    li.Line_Number,
-    li.Part_Number,
-    li.Description,
+    c.CustomerID,
+    cpo.Order_Date as OrderDate,
+    cpo.Total_Value as TotalValue,
+    cpo.Status as POStatus,
+    li.LineItem_ID as LineItemID,
+    li.Line_Number as LineNumber,
+    li.Part_Number as PartNumber,
+    li.PartID,
+    p.Description as PartDescription,
+    li.Description as LineItemDescription,
     li.Quantity,
-    li.Unit_Price,
-    li.Due_Date,
-    li.Status as LineItem_Status,
-    DATEDIFF(li.Due_Date, CURDATE()) as DaysUntilDue
+    li.Unit_Price as UnitPrice,
+    li.Due_Date as DueDate,
+    li.Status as LineItemStatus,
+    DATEDIFF(li.Due_Date, CURDATE()) as DaysUntilDue,
+    li.Notes
 FROM CustomerPurchaseOrders cpo
 LEFT JOIN Customers c ON cpo.CustomerID = c.CustomerID
-LEFT JOIN CustomerPOLineItems li ON cpo.PO_ID = li.PO_ID;
+LEFT JOIN CustomerPOLineItems li ON cpo.PO_ID = li.PO_ID
+LEFT JOIN Parts p ON li.PartID = p.PartID;
 
 -- =============================================
 -- INDEXES FOR PERFORMANCE

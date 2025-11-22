@@ -832,9 +832,17 @@ document.addEventListener('DOMContentLoaded', function() {
 
 // Load dashboard metrics
 function loadDashboardMetrics() {
-    fetch('/api/dashboard/metrics')
-        .then(response => response.json())
+    fetchWithTimeout('/api/dashboard/metrics')
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            return response.json();
+        })
         .then(data => {
+            if (data.error) {
+                throw new Error(data.error);
+            }
             document.getElementById('metricActiveOrders').textContent = data.active_orders || 0;
             document.getElementById('metricDueThisWeek').textContent = data.due_this_week || 0;
             document.getElementById('metricOverdue').textContent = data.overdue_orders || 0;
@@ -844,22 +852,30 @@ function loadDashboardMetrics() {
             document.getElementById('metricPendingPayments').textContent = data.pending_payments || 0;
         })
         .catch(error => {
-            console.error('Error loading metrics:', error);
+            handleFetchError(error, 'Failed to load dashboard metrics');
         });
 }
 
 // Load charts
 function loadCharts() {
-    fetch('/api/dashboard/charts')
-        .then(response => response.json())
+    fetchWithTimeout('/api/dashboard/charts')
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            return response.json();
+        })
         .then(data => {
+            if (data.error) {
+                throw new Error(data.error);
+            }
             createStatusChart(data.orders_by_status || []);
             createPriorityChart(data.orders_by_priority || []);
             createTimelineChart(data.completion_timeline || []);
             createPaymentChart(data.payment_status || []);
         })
         .catch(error => {
-            console.error('Error loading charts:', error);
+            handleFetchError(error, 'Failed to load dashboard charts');
         });
 }
 
@@ -1012,8 +1028,13 @@ function createPaymentChart(data) {
 
 // Load QB sync status
 function loadQBSyncStatus() {
-    fetch('/api/qb/sync_status')
-        .then(response => response.json())
+    fetchWithTimeout('/api/qb/sync_status', {}, 10000)
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            return response.json();
+        })
         .then(data => {
             const statusBadge = document.getElementById('qbSyncStatus');
             const lastSyncText = document.getElementById('qbLastSync');
@@ -1077,6 +1098,7 @@ function loadQBSyncStatus() {
             document.getElementById('qbSyncStatus').className = 'ms-2 badge bg-danger';
             document.getElementById('qbSyncStatus').textContent = 'Error';
             document.getElementById('qbLastSync').textContent = 'Failed to connect';
+            // Don't show full error alert for QB sync - it's optional
         });
 }
 
@@ -1118,16 +1140,24 @@ function applyFilters() {
 
     showLoading('Loading orders...');
 
-    fetch('/api/orders?' + params.toString())
-        .then(response => response.json())
+    fetchWithTimeout('/api/orders?' + params.toString())
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            return response.json();
+        })
         .then(data => {
             hideLoading();
+            if (data.error) {
+                throw new Error(data.error);
+            }
             updateOrdersTable(data.orders);
             document.getElementById('liveOrdersCount').textContent = data.total + ' orders';
         })
         .catch(error => {
             hideLoading();
-            showAlert('Error loading orders: ' + error.message, 'danger');
+            handleFetchError(error, 'Failed to load orders');
         });
 }
 
@@ -1223,8 +1253,13 @@ function stopAutoRefresh() {
 function viewOrderDetails(workOrderId) {
     showLoading('Loading order details...');
 
-    fetch(`/order_details/${workOrderId}`)
-        .then(response => response.json())
+    fetchWithTimeout(`/order_details/${workOrderId}`)
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            return response.json();
+        })
         .then(data => {
             hideLoading();
             if (data.error) {
@@ -1308,7 +1343,7 @@ function viewOrderDetails(workOrderId) {
         })
         .catch(error => {
             hideLoading();
-            showAlert('Error loading order details: ' + error.message, 'danger');
+            handleFetchError(error, 'Failed to load order details');
         });
 }
 
@@ -1316,8 +1351,13 @@ function viewOrderDetails(workOrderId) {
 function showCreatePOModal(workOrderId) {
     showLoading('Loading BOM processes...');
 
-    fetch(`/order_details/${workOrderId}`)
-        .then(response => response.json())
+    fetchWithTimeout(`/order_details/${workOrderId}`)
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            return response.json();
+        })
         .then(data => {
             hideLoading();
             if (data.error) {
@@ -1388,7 +1428,7 @@ function showCreatePOModal(workOrderId) {
         })
         .catch(error => {
             hideLoading();
-            showAlert('Error loading BOM processes: ' + error.message, 'danger');
+            handleFetchError(error, 'Failed to load BOM processes');
         });
 }
 
@@ -1396,13 +1436,18 @@ function showCreatePOModal(workOrderId) {
 function createPO(processId) {
     showLoading('Creating purchase order...');
 
-    fetch(`/create_po/${processId}`, {
+    fetchWithTimeout(`/create_po/${processId}`, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
         }
     })
-    .then(response => response.json())
+    .then(response => {
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        return response.json();
+    })
     .then(data => {
         hideLoading();
         if (data.success) {
@@ -1416,7 +1461,7 @@ function createPO(processId) {
     })
     .catch(error => {
         hideLoading();
-        showAlert('Error creating PO: ' + error.message, 'danger');
+        handleFetchError(error, 'Failed to create purchase order');
     });
 }
 
@@ -1424,13 +1469,18 @@ function createPO(processId) {
 function generateCOC(workOrderId) {
     showLoading('Generating Certificate of Completion...');
 
-    fetch(`/generate_coc/${workOrderId}`, {
+    fetchWithTimeout(`/generate_coc/${workOrderId}`, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
         }
+    }, 60000) // 60 second timeout for PDF generation
+    .then(response => {
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        return response.json();
     })
-    .then(response => response.json())
     .then(data => {
         hideLoading();
         if (data.success) {
@@ -1442,7 +1492,7 @@ function generateCOC(workOrderId) {
     })
     .catch(error => {
         hideLoading();
-        showAlert('Error generating COC: ' + error.message, 'danger');
+        handleFetchError(error, 'Failed to generate Certificate of Completion');
     });
 }
 
@@ -1450,7 +1500,7 @@ function generateCOC(workOrderId) {
 function updatePaymentStatus(workOrderId, status) {
     showLoading('Updating payment status...');
 
-    fetch(`/update_payment/${workOrderId}`, {
+    fetchWithTimeout(`/update_payment/${workOrderId}`, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
@@ -1459,7 +1509,12 @@ function updatePaymentStatus(workOrderId, status) {
             payment_status: status
         })
     })
-    .then(response => response.json())
+    .then(response => {
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        return response.json();
+    })
     .then(data => {
         hideLoading();
         if (data.success) {
@@ -1471,7 +1526,7 @@ function updatePaymentStatus(workOrderId, status) {
     })
     .catch(error => {
         hideLoading();
-        showAlert('Error updating payment status: ' + error.message, 'danger');
+        handleFetchError(error, 'Failed to update payment status');
     });
 }
 
@@ -1489,9 +1544,17 @@ function downloadCOC(filePath) {
 // Show Add Customer PO Modal
 function showAddCustomerPOModal() {
     // Load customers
-    fetch('/api/customers')
-        .then(response => response.json())
+    fetchWithTimeout('/api/customers')
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            return response.json();
+        })
         .then(data => {
+            if (data.error) {
+                throw new Error(data.error);
+            }
             const select = document.getElementById('customerSelect');
             select.innerHTML = '<option value="">Select Customer...</option>';
             data.customers.forEach(customer => {
@@ -1503,6 +1566,7 @@ function showAddCustomerPOModal() {
         })
         .catch(error => {
             console.error('Error loading customers:', error);
+            showAlert('Failed to load customers. Please try again.', 'warning');
         });
 
     // Set default date to today
@@ -1524,11 +1588,16 @@ function submitCustomerPO() {
 
     showLoading('Creating Customer PO...');
 
-    fetch('/api/customer_po/add', {
+    fetchWithTimeout('/api/customer_po/add', {
         method: 'POST',
         body: formData
     })
-    .then(response => response.json())
+    .then(response => {
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        return response.json();
+    })
     .then(data => {
         hideLoading();
         if (data.success) {
@@ -1543,16 +1612,20 @@ function submitCustomerPO() {
     })
     .catch(error => {
         hideLoading();
-        showAlert('Error creating Customer PO: ' + error.message, 'danger');
+        handleFetchError(error, 'Failed to create Customer PO');
     });
 }
 
 // Show Add Workorder Modal
 function showAddWorkorderModal() {
     // Load customers
-    fetch('/api/customers')
-        .then(response => response.json())
+    fetchWithTimeout('/api/customers')
+        .then(response => {
+            if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+            return response.json();
+        })
         .then(data => {
+            if (data.error) throw new Error(data.error);
             const select = document.getElementById('woCustomerSelect');
             select.innerHTML = '<option value="">Select Customer...</option>';
             data.customers.forEach(customer => {
@@ -1561,12 +1634,20 @@ function showAddWorkorderModal() {
                 option.textContent = customer.CustomerName;
                 select.appendChild(option);
             });
+        })
+        .catch(error => {
+            console.error('Error loading customers:', error);
+            showAlert('Failed to load customers', 'warning');
         });
 
     // Load parts
-    fetch('/api/parts')
-        .then(response => response.json())
+    fetchWithTimeout('/api/parts')
+        .then(response => {
+            if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+            return response.json();
+        })
         .then(data => {
+            if (data.error) throw new Error(data.error);
             const select = document.getElementById('woPartSelect');
             select.innerHTML = '<option value="">Select Part...</option>';
             data.parts.forEach(part => {
@@ -1575,12 +1656,20 @@ function showAddWorkorderModal() {
                 option.textContent = `${part.PartNumber} - ${part.Description}`;
                 select.appendChild(option);
             });
+        })
+        .catch(error => {
+            console.error('Error loading parts:', error);
+            showAlert('Failed to load parts', 'warning');
         });
 
     // Load customer POs
-    fetch('/api/customer_pos')
-        .then(response => response.json())
+    fetchWithTimeout('/api/customer_pos')
+        .then(response => {
+            if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+            return response.json();
+        })
         .then(data => {
+            if (data.error) throw new Error(data.error);
             const select = document.getElementById('woCustomerPOSelect');
             select.innerHTML = '<option value="">Select Customer PO (Optional)...</option>';
             data.customer_pos.forEach(po => {
@@ -1589,6 +1678,10 @@ function showAddWorkorderModal() {
                 option.textContent = `${po.PONumber} - ${po.CustomerName}`;
                 select.appendChild(option);
             });
+        })
+        .catch(error => {
+            console.error('Error loading customer POs:', error);
+            showAlert('Failed to load customer POs', 'warning');
         });
 
     const modal = new bootstrap.Modal(document.getElementById('addWorkorderModal'));
@@ -1608,14 +1701,19 @@ function submitWorkorder() {
 
     showLoading('Creating Workorder...');
 
-    fetch('/api/workorder/add', {
+    fetchWithTimeout('/api/workorder/add', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
         },
         body: JSON.stringify(data)
     })
-    .then(response => response.json())
+    .then(response => {
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        return response.json();
+    })
     .then(data => {
         hideLoading();
         if (data.success) {
@@ -1630,16 +1728,20 @@ function submitWorkorder() {
     })
     .catch(error => {
         hideLoading();
-        showAlert('Error creating Workorder: ' + error.message, 'danger');
+        handleFetchError(error, 'Failed to create Workorder');
     });
 }
 
 // Show Add BOM Modal
 function showAddBOMModal() {
     // Load workorders
-    fetch('/api/workorders')
-        .then(response => response.json())
+    fetchWithTimeout('/api/workorders')
+        .then(response => {
+            if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+            return response.json();
+        })
         .then(data => {
+            if (data.error) throw new Error(data.error);
             const select = document.getElementById('bomWorkorderSelect');
             select.innerHTML = '<option value="">Select Work Order...</option>';
             data.workorders.forEach(wo => {
@@ -1648,12 +1750,20 @@ function showAddBOMModal() {
                 option.textContent = `${wo.WorkOrderNumber} - ${wo.PartNumber}`;
                 select.appendChild(option);
             });
+        })
+        .catch(error => {
+            console.error('Error loading workorders:', error);
+            showAlert('Failed to load work orders', 'warning');
         });
 
     // Load vendors
-    fetch('/api/vendors')
-        .then(response => response.json())
+    fetchWithTimeout('/api/vendors')
+        .then(response => {
+            if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+            return response.json();
+        })
         .then(data => {
+            if (data.error) throw new Error(data.error);
             const select = document.getElementById('bomVendorSelect');
             select.innerHTML = '<option value="">Select Vendor (Optional)...</option>';
             data.vendors.forEach(vendor => {
@@ -1662,6 +1772,10 @@ function showAddBOMModal() {
                 option.textContent = vendor.VendorName;
                 select.appendChild(option);
             });
+        })
+        .catch(error => {
+            console.error('Error loading vendors:', error);
+            showAlert('Failed to load vendors', 'warning');
         });
 
     const modal = new bootstrap.Modal(document.getElementById('addBOMModal'));
@@ -1684,14 +1798,19 @@ function submitBOM() {
 
     showLoading('Creating BOM Process...');
 
-    fetch('/api/bom/add', {
+    fetchWithTimeout('/api/bom/add', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
         },
         body: JSON.stringify(data)
     })
-    .then(response => response.json())
+    .then(response => {
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        return response.json();
+    })
     .then(data => {
         hideLoading();
         if (data.success) {
@@ -1706,7 +1825,7 @@ function submitBOM() {
     })
     .catch(error => {
         hideLoading();
-        showAlert('Error creating BOM Process: ' + error.message, 'danger');
+        handleFetchError(error, 'Failed to create BOM Process');
     });
 }
 </script>

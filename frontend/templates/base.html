@@ -193,9 +193,38 @@
         }
         
         function hideLoading() {
-            const modal = bootstrap.Modal.getInstance(document.getElementById('loadingModal'));
-            if (modal) {
-                modal.hide();
+            try {
+                const modalElement = document.getElementById('loadingModal');
+                const modal = bootstrap.Modal.getInstance(modalElement);
+                if (modal) {
+                    modal.hide();
+                } else {
+                    // Force hide if no instance exists
+                    modalElement.classList.remove('show');
+                    modalElement.style.display = 'none';
+                    modalElement.setAttribute('aria-hidden', 'true');
+                    modalElement.removeAttribute('aria-modal');
+                    modalElement.removeAttribute('role');
+                }
+
+                // Clean up any remaining backdrops
+                const backdrops = document.querySelectorAll('.modal-backdrop');
+                backdrops.forEach(backdrop => backdrop.remove());
+
+                // Remove modal-open class from body
+                document.body.classList.remove('modal-open');
+                document.body.style.overflow = '';
+                document.body.style.paddingRight = '';
+            } catch (error) {
+                console.error('Error hiding loading modal:', error);
+                // Force cleanup on error
+                const modalElement = document.getElementById('loadingModal');
+                if (modalElement) {
+                    modalElement.style.display = 'none';
+                }
+                document.querySelectorAll('.modal-backdrop').forEach(b => b.remove());
+                document.body.classList.remove('modal-open');
+                document.body.style.overflow = '';
             }
         }
         
@@ -274,6 +303,34 @@
             if (days < 0) return 'text-danger fw-bold';
             if (days <= 3) return 'text-warning fw-bold';
             return 'text-success';
+        }
+
+        // Fetch with timeout wrapper
+        function fetchWithTimeout(url, options = {}, timeout = 30000) {
+            return Promise.race([
+                fetch(url, options),
+                new Promise((_, reject) =>
+                    setTimeout(() => reject(new Error('Request timed out. Please check your connection and try again.')), timeout)
+                )
+            ]);
+        }
+
+        // Global error handler for fetch requests
+        function handleFetchError(error, userMessage = 'An error occurred') {
+            console.error('Fetch error:', error);
+            hideLoading();
+
+            let message = userMessage;
+            if (error.message.includes('timed out')) {
+                message = 'Request timed out. The server is taking too long to respond. Please try again.';
+            } else if (error.message.includes('Failed to fetch') || error.message.includes('NetworkError')) {
+                message = 'Network error. Please check your internet connection and try again.';
+            } else if (error instanceof TypeError) {
+                message = 'Connection error. Please check if the server is running.';
+            }
+
+            showAlert(message, 'danger');
+            return null;
         }
     </script>
     

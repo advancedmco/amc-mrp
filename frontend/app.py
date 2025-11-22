@@ -79,7 +79,7 @@ class MRPDashboard:
                 DATEDIFF(wo.DueDate, CURDATE()) as DaysUntilDue
             FROM WorkOrders wo
             JOIN Customers c ON wo.CustomerID = c.CustomerID
-            JOIN Parts p ON wo.PartID = p.PartID
+            LEFT JOIN Parts p ON wo.PartID = p.PartID
             LEFT JOIN CustomerPurchaseOrders cpo ON wo.CustomerPOID = cpo.PO_ID
             WHERE wo.Status != 'Completed' AND wo.Status != 'Shipped'
             ORDER BY wo.CreatedDate DESC
@@ -119,7 +119,7 @@ class MRPDashboard:
                 cl.DocumentPath as COCPath
             FROM WorkOrders wo
             JOIN Customers c ON wo.CustomerID = c.CustomerID
-            JOIN Parts p ON wo.PartID = p.PartID
+            LEFT JOIN Parts p ON wo.PartID = p.PartID
             LEFT JOIN CustomerPurchaseOrders cpo ON wo.CustomerPOID = cpo.PO_ID
             LEFT JOIN CertificatesLog cl ON wo.WorkOrderID = cl.WorkOrderID
             WHERE wo.Status IN ('Completed', 'Shipped')
@@ -161,7 +161,7 @@ class MRPDashboard:
                 cl.DocumentPath as COCPath
             FROM WorkOrders wo
             JOIN Customers c ON wo.CustomerID = c.CustomerID
-            JOIN Parts p ON wo.PartID = p.PartID
+            LEFT JOIN Parts p ON wo.PartID = p.PartID
             LEFT JOIN CustomerPurchaseOrders cpo ON wo.CustomerPOID = cpo.PO_ID
             LEFT JOIN CertificatesLog cl ON wo.WorkOrderID = cl.WorkOrderID
             WHERE wo.Status IN ('Completed', 'Shipped')
@@ -190,7 +190,7 @@ class MRPDashboard:
             
             # Get work order details
             query = """
-            SELECT 
+            SELECT
                 wo.*,
                 c.CustomerName,
                 c.QuickBooksID as CustomerQBID,
@@ -200,7 +200,7 @@ class MRPDashboard:
                 p.FSN
             FROM WorkOrders wo
             JOIN Customers c ON wo.CustomerID = c.CustomerID
-            JOIN Parts p ON wo.PartID = p.PartID
+            LEFT JOIN Parts p ON wo.PartID = p.PartID
             WHERE wo.WorkOrderID = %s
             """
             
@@ -448,7 +448,7 @@ class MRPDashboard:
                 DATEDIFF(wo.DueDate, CURDATE()) as DaysUntilDue
             FROM WorkOrders wo
             JOIN Customers c ON wo.CustomerID = c.CustomerID
-            JOIN Parts p ON wo.PartID = p.PartID
+            LEFT JOIN Parts p ON wo.PartID = p.PartID
             LEFT JOIN CustomerPurchaseOrders cpo ON wo.CustomerPOID = cpo.PO_ID
             WHERE 1=1
             """
@@ -494,7 +494,7 @@ class MRPDashboard:
             SELECT COUNT(*) as total
             FROM WorkOrders wo
             JOIN Customers c ON wo.CustomerID = c.CustomerID
-            JOIN Parts p ON wo.PartID = p.PartID
+            LEFT JOIN Parts p ON wo.PartID = p.PartID
             LEFT JOIN CustomerPurchaseOrders cpo ON wo.CustomerPOID = cpo.PO_ID
             WHERE 1=1
             """
@@ -632,7 +632,7 @@ class MRPDashboard:
                     p.Description,
                     c.CustomerName
                 FROM WorkOrders wo
-                JOIN Parts p ON wo.PartID = p.PartID
+                LEFT JOIN Parts p ON wo.PartID = p.PartID
                 JOIN Customers c ON wo.CustomerID = c.CustomerID
                 ORDER BY wo.CreatedDate DESC
             """)

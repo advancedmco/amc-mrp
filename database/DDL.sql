@@ -120,7 +120,7 @@ CREATE TABLE WorkOrders (
     WorkOrderID INT AUTO_INCREMENT PRIMARY KEY,
     WorkOrderNumber VARCHAR(50) UNIQUE COMMENT 'Human-readable work order number (e.g., WO-10001)',
     CustomerID INT NOT NULL,
-    PartID INT NOT NULL,
+    PartID INT COMMENT 'Auto-populated from CustomerPOLineItemID if provided, otherwise must be supplied',
     CustomerPOID INT COMMENT 'Direct reference to Customer PO header (denormalized for performance)',
     CustomerPOLineItemID INT,
     QuantityOrdered INT NOT NULL DEFAULT 1 COMMENT 'Quantity ordered for this specific work order',
@@ -295,28 +295,8 @@ CREATE TABLE OAuthTokens (
 -- TRIGGERS FOR AUTOMATION
 -- =============================================
 
--- Trigger to auto-populate related fields BEFORE INSERT
-DELIMITER //
-CREATE TRIGGER trg_workorder_before_insert
-BEFORE INSERT ON WorkOrders
-FOR EACH ROW
-BEGIN
-    -- Auto-populate CustomerPOID from CustomerPOLineItemID if provided
-    IF NEW.CustomerPOLineItemID IS NOT NULL AND NEW.CustomerPOID IS NULL THEN
-        SELECT PO_ID INTO NEW.CustomerPOID
-        FROM CustomerPOLineItems
-        WHERE LineItem_ID = NEW.CustomerPOLineItemID;
-    END IF;
-
-    -- Auto-populate PartID from CustomerPOLineItemID if provided and PartID is NULL
-    IF NEW.CustomerPOLineItemID IS NOT NULL AND NEW.PartID IS NULL THEN
-        SELECT PartID INTO NEW.PartID
-        FROM CustomerPOLineItems
-        WHERE LineItem_ID = NEW.CustomerPOLineItemID
-        LIMIT 1;
-    END IF;
-END//
-DELIMITER ;
+-- Note: Auto-population of CustomerPOID and PartID from CustomerPOLineItemID
+-- should be handled at the application level to avoid trigger complexity
 
 -- Trigger to auto-generate WorkOrderNumber AFTER INSERT (when WorkOrderID is available)
 DELIMITER //

@@ -2,42 +2,6 @@
 
 {% block title %}MRP Dashboard - Advanced Machine Co.{% endblock %}
 
-{% block sidebar %}
-<!-- Quick Actions Sidebar -->
-<div class="sidebar-section">
-    <div class="sidebar-section-title">
-        <i class="bi bi-lightning-fill me-1"></i> Quick Actions
-    </div>
-    <button class="btn btn-primary sidebar-btn" onclick="showAddCustomerPOModal()">
-        <i class="bi bi-file-earmark-arrow-up"></i>
-        <span>Add Customer PO</span>
-    </button>
-    <button class="btn btn-success sidebar-btn" onclick="showAddWorkorderModal()">
-        <i class="bi bi-clipboard-plus"></i>
-        <span>Add Workorder</span>
-    </button>
-    <button class="btn btn-info sidebar-btn" onclick="showAddBOMModal()">
-        <i class="bi bi-list-ul"></i>
-        <span>Add BOM Process</span>
-    </button>
-</div>
-
-<!-- Navigation Links -->
-<div class="sidebar-section">
-    <div class="sidebar-section-title">
-        <i class="bi bi-compass me-1"></i> Navigation
-    </div>
-    <a href="/" class="btn btn-outline-primary sidebar-btn">
-        <i class="bi bi-speedometer2"></i>
-        <span>Dashboard</span>
-    </a>
-    <a href="/quickbooks" class="btn btn-outline-secondary sidebar-btn">
-        <i class="bi bi-cloud-arrow-down"></i>
-        <span>QuickBooks</span>
-    </a>
-</div>
-{% endblock %}
-
 {% block extra_css %}
 <style>
     .metric-card {

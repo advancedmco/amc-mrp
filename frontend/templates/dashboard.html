@@ -2,6 +2,42 @@
 
 {% block title %}MRP Dashboard - Advanced Machine Co.{% endblock %}
 
+{% block sidebar %}
+<!-- Quick Actions Sidebar -->
+<div class="sidebar-section">
+    <div class="sidebar-section-title">
+        <i class="bi bi-lightning-fill me-1"></i> Quick Actions
+    </div>
+    <button class="btn btn-primary sidebar-btn" onclick="showAddCustomerPOModal()">
+        <i class="bi bi-file-earmark-arrow-up"></i>
+        <span>Add Customer PO</span>
+    </button>
+    <button class="btn btn-success sidebar-btn" onclick="showAddWorkorderModal()">
+        <i class="bi bi-clipboard-plus"></i>
+        <span>Add Workorder</span>
+    </button>
+    <button class="btn btn-info sidebar-btn" onclick="showAddBOMModal()">
+        <i class="bi bi-list-ul"></i>
+        <span>Add BOM Process</span>
+    </button>
+</div>
+
+<!-- Navigation Links -->
+<div class="sidebar-section">
+    <div class="sidebar-section-title">
+        <i class="bi bi-compass me-1"></i> Navigation
+    </div>
+    <a href="/" class="btn btn-outline-primary sidebar-btn">
+        <i class="bi bi-speedometer2"></i>
+        <span>Dashboard</span>
+    </a>
+    <a href="/quickbooks" class="btn btn-outline-secondary sidebar-btn">
+        <i class="bi bi-cloud-arrow-down"></i>
+        <span>QuickBooks</span>
+    </a>
+</div>
+{% endblock %}
+
 {% block extra_css %}
 <style>
     .metric-card {
@@ -104,30 +140,6 @@
                             <i class="bi bi-arrow-repeat"></i> Sync Now
                         </button>
                     </div>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- Quick Actions -->
-<div class="row mb-4">
-    <div class="col-12">
-        <div class="card">
-            <div class="card-header">
-                <h6 class="mb-0"><i class="bi bi-plus-circle me-2"></i>Quick Actions</h6>
-            </div>
-            <div class="card-body">
-                <div class="d-flex gap-2">
-                    <button class="btn btn-primary" onclick="showAddCustomerPOModal()">
-                        <i class="bi bi-file-earmark-arrow-up me-2"></i>Add Customer PO
-                    </button>
-                    <button class="btn btn-success" onclick="showAddWorkorderModal()">
-                        <i class="bi bi-clipboard-plus me-2"></i>Add Workorder
-                    </button>
-                    <button class="btn btn-info" onclick="showAddBOMModal()">
-                        <i class="bi bi-list-ul me-2"></i>Add BOM
-                    </button>
                 </div>
             </div>
         </div>

@@ -128,6 +128,107 @@
         .modal-header .btn-close {
             filter: invert(1);
         }
+
+        /* Sidebar Navigation */
+        .sidebar {
+            position: fixed;
+            top: 56px; /* Height of navbar */
+            left: 0;
+            bottom: 0;
+            width: 250px;
+            background-color: #fff;
+            border-right: 1px solid #dee2e6;
+            padding: 1.5rem 1rem;
+            overflow-y: auto;
+            z-index: 100;
+            box-shadow: 2px 0 8px rgba(0,0,0,0.05);
+        }
+
+        .sidebar-section {
+            margin-bottom: 2rem;
+        }
+
+        .sidebar-section-title {
+            font-size: 0.75rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: #6c757d;
+            margin-bottom: 0.75rem;
+            padding-left: 0.5rem;
+        }
+
+        .sidebar-btn {
+            width: 100%;
+            text-align: left;
+            margin-bottom: 0.5rem;
+            display: flex;
+            align-items: center;
+            padding: 0.75rem 1rem;
+            border-radius: 0.5rem;
+            transition: all 0.2s;
+        }
+
+        .sidebar-btn:hover {
+            transform: translateX(4px);
+        }
+
+        .sidebar-btn i {
+            margin-right: 0.75rem;
+            font-size: 1.1rem;
+        }
+
+        .main-content-wrapper {
+            margin-left: 250px;
+            padding: 0;
+        }
+
+        /* Mobile responsive */
+        @media (max-width: 768px) {
+            .sidebar {
+                transform: translateX(-100%);
+                transition: transform 0.3s ease-in-out;
+            }
+
+            .sidebar.show {
+                transform: translateX(0);
+            }
+
+            .main-content-wrapper {
+                margin-left: 0;
+            }
+
+            .sidebar-toggle {
+                display: block !important;
+                position: fixed;
+                bottom: 20px;
+                left: 20px;
+                z-index: 1000;
+                border-radius: 50%;
+                width: 56px;
+                height: 56px;
+                box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+            }
+        }
+
+        .sidebar-toggle {
+            display: none;
+        }
+
+        .sidebar-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: rgba(0,0,0,0.5);
+            z-index: 99;
+        }
+
+        .sidebar-overlay.show {
+            display: block;
+        }
     </style>
     
     {% block extra_css %}{% endblock %}
@@ -149,21 +250,38 @@
         </div>
     </nav>
 
+    <!-- Sidebar Toggle Button (Mobile) -->
+    <button class="btn btn-primary sidebar-toggle" id="sidebarToggle">
+        <i class="bi bi-list"></i>
+    </button>
+
+    <!-- Sidebar Overlay (Mobile) -->
+    <div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+    <!-- Sidebar -->
+    <div class="sidebar" id="sidebar">
+        {% block sidebar %}
+        <!-- Default sidebar content - can be overridden in child templates -->
+        {% endblock %}
+    </div>
+
     <!-- Main Content -->
-    <div class="container-fluid mt-4">
-        <!-- Flash Messages -->
-        {% with messages = get_flashed_messages(with_categories=true) %}
-            {% if messages %}
-                {% for category, message in messages %}
-                    <div class="alert alert-{{ 'danger' if category == 'error' else category }} alert-dismissible fade show" role="alert">
-                        {{ message }}
-                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-                    </div>
-                {% endfor %}
-            {% endif %}
-        {% endwith %}
-        
-        {% block content %}{% endblock %}
+    <div class="main-content-wrapper">
+        <div class="container-fluid mt-4">
+            <!-- Flash Messages -->
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    {% for category, message in messages %}
+                        <div class="alert alert-{{ 'danger' if category == 'error' else category }} alert-dismissible fade show" role="alert">
+                            {{ message }}
+                            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                        </div>
+                    {% endfor %}
+                {% endif %}
+            {% endwith %}
+
+            {% block content %}{% endblock %}
+        </div>
     </div>
 
     <!-- Loading Modal -->
@@ -332,6 +450,25 @@
             showAlert(message, 'danger');
             return null;
         }
+
+        // Sidebar toggle functionality
+        document.addEventListener('DOMContentLoaded', function() {
+            const sidebarToggle = document.getElementById('sidebarToggle');
+            const sidebar = document.getElementById('sidebar');
+            const sidebarOverlay = document.getElementById('sidebarOverlay');
+
+            if (sidebarToggle && sidebar && sidebarOverlay) {
+                sidebarToggle.addEventListener('click', function() {
+                    sidebar.classList.toggle('show');
+                    sidebarOverlay.classList.toggle('show');
+                });
+
+                sidebarOverlay.addEventListener('click', function() {
+                    sidebar.classList.remove('show');
+                    sidebarOverlay.classList.remove('show');
+                });
+            }
+        });
     </script>
     
     {% block extra_js %}{% endblock %}

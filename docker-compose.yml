@@ -22,11 +22,13 @@ services:
       timeout: 3s
       retries: 20
       start_period: 60s
+    volumes:
+      - ./database/live:/var/lib/mysql
     # No persistent volumes - fresh database on each startup
     # tmpfs optimized for MariaDB with explicit size and mode
-    tmpfs:
-      - /var/lib/mysql:rw,noexec,nosuid,size=512m
-      - /tmp:rw,noexec,nosuid,size=64m
+    #tmpfs:
+    #  - /var/lib/mysql:rw,noexec,nosuid,size=512m
+    #  - /tmp:rw,noexec,nosuid,size=64m
 
   # Web Dashboard and Document Generator Service
   frontend:

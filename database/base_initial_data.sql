@@ -15,25 +15,13 @@ USE amcmrp;
 INSERT INTO Customers (CustomerID, CustomerName, QuickBooksID) VALUES
 (1,'Shibaura',NULL),
 (2,'Relli',NULL),
-(3,'Chick Fil A',NULL),
-(4,'Clayton Bishop',NULL),
 (5,'DAB Doors Co',NULL),
-(6,'DJL-SOUND',NULL),
-(7,'Element Bars',NULL),
-(8,'HFI Innovation In Stainless Steel Fabrica',NULL),
-(9,'JBR',NULL),
-(10,'Jhelsa Metal Polishing & Fabricating',NULL),
 (11,'John Catrinta',NULL),
-(12,'John J. Monaco Products Co Inc',NULL),
-(13,'LALO REPAIRS',NULL),
-(14,'Midwest Manufacturing & Dist. (Customer)',NULL),
-(15,'Mr. Chuck Berkelhamer',NULL),
 (16,'National Power Corp',NULL),
 (17,'Precise Rotary Die',NULL),
 (18,'Shibaura Machine Mexico SA de CV',NULL),
 (19,'Surface Solution',NULL),
-(20,'Trim-Tex Inc.',NULL),
-(21,'USM Recycling',NULL);
+(20,'Trim-Tex Inc.',NULL);
 
 -- =============================================
 -- 2. VENDORS - Common vendors for various processes

@@ -361,7 +361,6 @@ mysql -h localhost -P 3307 -u amc -p amcmrp
 - `example.env` - Environment template
 - `README.md` - Main documentation
 - `CLAUDE.md` - This file (development instructions)
-- `general_instructions.txt` - General development rules
 - `[component]/Dockerfile` - Service build configuration
 - `[component]/.dockerignore` - Build optimization
 - `[component]/instructions.txt` - Component-specific rules

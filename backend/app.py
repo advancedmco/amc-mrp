@@ -26,7 +26,7 @@ logger = logging.getLogger(__name__)
 
 # Database configuration
 DB_CONFIG = {
-    'host': os.getenv('DB_HOST', 'mysql'),
+    'host': os.getenv('DB_HOST', 'db'),
     'user': os.getenv('DB_USER', 'amc'),
     'password': os.getenv('DB_PASSWORD', 'Workbench.lavender.chrome'),
     'database': os.getenv('DB_NAME', 'amcmrp'),
